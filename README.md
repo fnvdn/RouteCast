@@ -15,7 +15,8 @@ the local data directory is approximately 194 GB.
 
 ```text
 MOEresearch/
-|-- code/                 training, baselines, evaluation, plotting
+|-- workflow/             numbered paper-order reproduction entry points
+|-- code/                 stable implementation and development utilities
 |   |-- models/           compact final/baseline checkpoints
 |   `-- routecast_rc/     reusable RouteCast modules
 |-- data/README.md        dataset source and expected local layout
@@ -52,4 +53,11 @@ The expected final line is `reproducibility_audit=PASS`.
 
 See [HANDOFF.md](HANDOFF.md) for the complete handoff procedure and ownership
 boundaries.
+
+## Reproduce in paper order
+
+Start from [workflow/README.md](workflow/README.md). It maps the complete
+architecture and evidence chain to numbered scripts from environment audit,
+through prediction and calibration, to cache replay and paper figures. The
+implementation ownership map is in [code/CODE_MAP.md](code/CODE_MAP.md).
 

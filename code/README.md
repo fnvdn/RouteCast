@@ -1,5 +1,8 @@
 # RouteCast reproducible project
 
+For the paper-order execution path, use `../workflow/README.md`. For the
+manuscript-to-code ownership map, use `CODE_MAP.md`.
+
 The project is self-contained under the directory that contains this `code`
 folder. Executable scripts derive `data`, `record`, `models`, and `.venv` paths
 from their own location; no E-drive or fixed F-drive dependency remains.

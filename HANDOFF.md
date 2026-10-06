@@ -51,8 +51,9 @@ manifest, and loads the final checkpoint.
 
 | Purpose | Entry point |
 |---|---|
-| Main RouteCast training | `code/train_routecast_cross_token_v3.py` |
-| TCN baseline | `code/train_tcn_cross_token.py` |
+| Ordered end-to-end workflow | `workflow/README.md` |
+| Main RouteCast training | `code/train_universal_routecast_v3.py` |
+| TCN baseline | `code/train_tcn_baseline.py` |
 | Paper heatmap baseline | `code/evaluate_paper_heatmap.py` |
 | Strong baseline suite | `code/run_strong_baselines.ps1` |
 | Calibration | `code/calibrate_routecast_v3.py` |
