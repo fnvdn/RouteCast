@@ -1,0 +1,294 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{mathtools}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{dblfloatfix}
+\usepackage{placeins}
+\allowdisplaybreaks[1]
+\setcounter{topnumber}{3}
+\setcounter{dbltopnumber}{2}
+\setcounter{totalnumber}{4}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\dbltopfraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.80}
+\renewcommand{\dblfloatpagefraction}{0.80}
+\setlength{\textfloatsep}{10pt plus 2pt minus 2pt}
+\setlength{\dbltextfloatsep}{10pt plus 2pt minus 2pt}
+\setlength{\floatsep}{9pt plus 2pt minus 2pt}
+\makeatletter
+\setlength{\@fptop}{0pt}
+\setlength{\@fpsep}{10pt}
+\setlength{\@fpbot}{0pt plus 1fil}
+\makeatother
+\DeclareMathOperator*{\argmin}{arg\,min}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\title{RouteCast: Calibrated Cross-Token Expert Forecasting with Selective Cache-Aware Prefetching for Heterogeneous MoE Models}
+
+\author{\IEEEauthorblockN{Jihua Dong}
+\IEEEauthorblockA{\textit{School of Microelectronics} \\
+\textit{University of Electronic Science and Technology of China}\\
+Chengdu, China \\
+2023190903038@std.uestc.edu.cn}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Sparse mixture-of-experts (MoE) inference may transfer non-resident expert weights after routing, exposing data movement on the critical path. Prefetching can hide this movement only when forecasts arrive early and incorrect transfers do not overwhelm the cache. We present RouteCast, a route-only framework that forecasts next-token experts from previously observed selections without using hidden states or modifying the native router. A context-dependent gate combines popularity, transition, prefill, recurrent-history, and multiscale temporal evidence. Per-model temperature scaling then supports adaptive candidate budgets, confidence rejection, and cache-aware admission. Under request-disjoint limit=1000 evaluation, native-budget Recall reached 0.5558 on Qwen3, 0.3172 on DeepSeek-R1, and 0.3602 on Llama4 Maverick. These values exceed a matched temporal convolutional network baseline by 0.0281, 0.0455, and 0.0579, respectively. Confidence intervals from 10,000 paired request-level bootstrap resamples excluded zero for all three models. Trace-driven replay also reduced transfers relative to unfiltered adaptive-mass prefetching, although the cache-hit benefit depended on model and capacity. RouteCast therefore provides a calibrated interface between route forecasting and selective cache action. The trace-based evidence does not establish end-to-end latency gains in a deployed MoE system.
+\end{abstract}
+
+\begin{IEEEkeywords}
+mixture of experts, expert prefetching, route prediction, calibration, adaptive budget, expert cache
+\end{IEEEkeywords}
+
+\section{Introduction}
+Sparse MoE language models increase parameter capacity while evaluating only a small expert subset for each token. This conditional computation reduces arithmetic cost, but the complete expert pool can still exceed accelerator memory. In an offloaded deployment, an expert that is not resident must be transferred from host memory or another device after the native router selects it. Because the transfer lies between routing and expert execution, reactive loading can expose data-movement latency on the inference critical path.
+
+Speculative expert prefetching attempts to move likely experts before they are demanded. Prior work has explored router co-design, proactive expert movement and sparsity-aware caching \cite{pregated,moeinfinity,promoe}. Public route traces further show that expert choices contain spatial and temporal structure \cite{patterns}. However, high prediction recall alone is insufficient: enlarging the candidate set trivially covers more true experts while increasing false transfers, cache pollution and replacement pressure. A useful predictor must therefore answer three linked questions: which experts are likely, how trustworthy is the score distribution, and which predictions should become physical prefetches under a finite cache budget?
+
+We study these questions under a route-only constraint. RouteCast observes discrete expert identifiers from earlier token positions and structural metadata, but not hidden activations or native-router logits. This setting is attractive when traces are available across heterogeneous architectures or when modifying the serving model is undesirable. It is also difficult: Qwen3 and DeepSeek-R1 select eight experts from different pool sizes, whereas Llama4 Maverick selects one; consequently, a fixed heuristic or a predictor tuned to one routing regime need not transfer to the others.
+
+RouteCast addresses this heterogeneity with six evidence branches and a context-dependent probability-mixture gate. The fused scores are calibrated separately for each model. A validation-selected probability-mass threshold controls the candidate budget, low-utility predictions can be rejected, and cache-aware admission prevents every high-ranked candidate from forcing a transfer. Figure~\ref{fig:framework} summarizes this progression from route observation to selective action.
+
+RouteCast contributes a request-disjoint protocol for next-token expert forecasting across three heterogeneous public MoE trace families. Its shared predictor combines statistical transitions with learned temporal evidence without accessing hidden states. Per-model calibration, adaptive mass, and confidence rejection convert rankings into selective decisions. Trace-driven cache replay then measures downstream benefits and model--capacity failure boundaries. The evidence remains algorithmic; end-to-end latency, throughput, and energy are outside the present scope.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.98\textwidth]{figures_final/Fig1_Framework}
+\caption{RouteCast couples calibrated cross-token route forecasting to selective expert-prefetch decisions. Previously observed routes feed statistical and temporal predictors, a context gate combines their probability distributions, and calibration exposes a confidence-bearing interface for adaptive budget control and cache-aware admission. The native router remains authoritative.}
+\label{fig:framework}
+\end{figure*}
+\section{Related Work}
+\textbf{MoE inference and expert movement.}
+Pre-gated MoE jointly designs routing and execution to reduce inference overhead \cite{pregated}. MoE-Infinity exploits activation sparsity through expert caching on memory-constrained machines \cite{moeinfinity}, while ProMoE studies proactive caching for MoE serving \cite{promoe}. These systems motivate forecasting, but their reported system gains depend on deployment-specific overlap, bandwidth and cache behavior.
+
+\textbf{Route forecasting.}
+Patterns behind Chaos characterizes spatial and temporal regularities in expert-selection traces and provides the public data used in this study \cite{patterns}. Spatio-temporal prediction approaches similarly combine route relations across tokens or layers \cite{stmoe}. RouteCast differs in treating heterogeneous route statistics as conditionally useful evidence: a learned gate mixes normalized branch distributions rather than assigning one fixed fusion rule across models and requests.
+
+\textbf{Prediction-aware prefetch decisions.}
+Speculative prefetching studies increasingly emphasize that a prediction becomes useful only after accounting for its movement and residency consequences \cite{specmd,specprefetch}. RouteCast adopts this separation explicitly. Fixed-budget Recall and ranking metrics evaluate the forecaster; adaptive mass evaluates the candidate interface; and cache replay evaluates issued transfers. This prevents an increase in prediction coverage from being misreported as an equivalent systems speedup.
+
+\section{RouteCast Design}
+\subsection{Problem and Design Principles}
+For request $r$, token $t$, and routed layer $\ell$, let $\mathcal{Y}_{r,t,\ell}$ be the native router's selected experts from a pool of size $E_r$. Its native width is $K_r=|\mathcal{Y}_{r,t,\ell}|$. RouteCast observes only previous expert identifiers and structural metadata. It predicts the next-token expert set without hidden states or router logits:
+\begin{equation}
+\hat{\mathcal{Y}}_{r,t+1,\ell}
+=f_\theta(\mathcal{R}_{r,1:t},\ell,\mathbf{c}_{r,t,\ell}).
+\label{eq:task}
+\end{equation}
+The design separates three operations. The forecaster ranks experts, calibration gives those rankings a comparable confidence scale, and the scheduler decides whether a candidate should trigger movement. This separation prevents wider candidate sets from being mistaken for better prefetch policies.
+
+\subsection{Multi-Source Route Forecasting}
+RouteCast forms six per-expert evidence signals: layer popularity, one-hop and two-hop cross-token transitions, request-prefill popularity, GRU history, and multiscale frequency and recency. The statistical branches provide stable priors when a request offers little local evidence. The learned branches capture departures from those priors over a history of $H=16$ tokens. Empty transition or prefill counts fall back to layer popularity.
+
+Each branch $b$ is independently normalized to an expert distribution $p^{(b)}_{t,\ell}$. Its descriptor contains the largest probability, the margin between the two largest probabilities, and normalized entropy. A small gate combines these descriptors with layer position, pool size, native sparsity, request entropy, and token position. The final score is
+\begin{align}
+\mathbf{g}_{t,\ell}
+&=\operatorname{softmax}\!\left(f_g([\phi(p^{(1:B)}),\mathbf{c}_{t,\ell}])\right),\\
+s_{t,\ell,e}
+&=\log\!\left(\sum_{b=1}^{B}g^{(b)}_{t,\ell}p^{(b)}_{t,\ell,e}+\epsilon\right)
++\alpha r_{t,\ell,e},
+\label{eq:fusion}
+\end{align}
+where $B=6$, $\alpha=0.1$, and $r_{t,\ell,e}$ is a lightweight residual correction. Distribution-level fusion avoids comparing incompatible raw branch scales. Conditional weights can also suppress a branch that is informative for one routing regime but harmful for another.
+
+\subsection{Cross-Model Learning}
+The training objective combines class-balanced binary classification, listwise likelihood, pairwise hard-negative ranking, and a differentiable multi-budget cutoff penalty:
+\begin{equation}
+\mathcal{L}=0.20\mathcal{L}_{\mathrm{BCE}}
++0.25\mathcal{L}_{\mathrm{list}}
++0.35\mathcal{L}_{\mathrm{rank}}
++0.20\mathcal{L}_{\mathrm{budget}}.
+\label{eq:total-loss}
+\end{equation}
+The ranking term compares each true expert with the 24 highest-scoring negatives. The budget term penalizes true experts below model-specific Top-$K$ cutoffs. Group distributionally robust optimization reweights model families by their running loss so that the largest trace family does not dominate the shared predictor. Training uses FP32 loss reduction, float64 group-weight normalization, finite-value checks, and gradient clipping.
+
+\subsection{Calibrated Candidate Selection}
+After training, a positive temperature $T_r^*$ is selected separately for each model by minimizing validation binary cross-entropy. Temperature scaling preserves expert order but changes probability concentration. The calibrated categorical distribution and cumulative-mass width are
+\begin{align}
+\tilde p_{t,\ell,e}
+&=\frac{\exp(s_{t,\ell,e}/T_r^*)}{\sum_j\exp(s_{t,\ell,j}/T_r^*)},\\
+K_{t,\ell}(m)
+&=\min\left\{k:\sum_{i=1}^{k}\tilde p_{t,\ell,(i)}\ge m\right\}.
+\label{eq:adaptive-width}
+\end{align}
+Validation selects the smallest mean width that retains a prescribed fraction of fixed-native validation Recall:
+\begin{equation}
+m^*=\argmin_m\overline{K}(m)quad
+\mathrm{s.t.}\quad R_{\mathrm{val}}(m)\ge
+0.98R_{\mathrm{val}}(K_r).
+\label{eq:mass-selection}
+\end{equation}
+This model-specific operating point exposes a quality--movement trade-off rather than imposing one global threshold across heterogeneous routers.
+
+\subsection{Selective Cache Admission}
+A validation-selected confidence threshold removes low-utility candidates and can abstain completely when speculative movement has negative utility. RouteCast then discards candidates already resident in cache $\mathcal{C}_t$. Each resident entry keeps a value $v_t(c)$ equal to its current calibrated probability when observed and an exponentially decayed previous value otherwise, with decay $\beta=0.90$.
+
+If capacity remains, a non-resident candidate is admitted directly. Otherwise, candidate $a$ replaces the least-valued resident entry only when
+\begin{equation}
+c^*=\argmin_{c\in\mathcal{C}_t}v_t(c),qquad
+\tilde p_t(a)>v_t(c^*)+\delta,quad \delta=0.
+\label{eq:cache-admission}
+\end{equation}
+The native router remains authoritative. A wrong forecast can cause speculative movement, but it cannot change model output.
+
+\section{Experimental Design}
+\subsection{Trace Data and Request-Disjoint Protocol}
+We use public expert-selection traces associated with Patterns behind Chaos \cite{patterns}. The evaluated families are Qwen3-235B-A22B, DeepSeek-R1 and Llama4 Maverick. They expose 128, 256 and 128 experts, respectively; Qwen3 and DeepSeek-R1 use native Top-8 routing, whereas Llama4 uses Top-1. For each family, at most 1,000 complete requests are assigned to train, validation or test by a deterministic hash of the relative request identifier. All token-layer records from a request remain in one split. The resulting packed cache contains 22,376,230 examples across 3,000 request files; its full numeric audit found no non-finite tensors.
+
+\subsection{Comparators and Metrics}
+The main forecasting baselines are Paper Heatmap, a request-aware heatmap, a history-only GRU, and a history-only temporal convolutional network (TCN). All learned methods use the same split, targets, multi-budget loss, and Group-DRO protocol. Paper Heatmap estimates cross-token transition statistics following the trace paper, whereas the request-aware version additionally conditions statistics on the current request. GRU-only uses recurrent history, and TCN-only applies four causal dilated-convolution blocks with dilation factors 1, 2, 4, and 8. Neither neural baseline receives RouteCast's statistical, prefill, or context-gated fusion features. We report Recall@K, Precision@K, mean true experts in the predicted set, mean reciprocal rank (MRR) and normalized discounted cumulative gain (NDCG). Because native-budget prediction and the true set have equal cardinality, Recall and Precision are numerically equal in Table~\ref{tab:main}.
+
+MRR measures the rank of the first relevant expert, while NDCG rewards relevant experts appearing earlier in the candidate list. Uncertainty is assessed by paired bootstrap over requests rather than token-layer examples. Each of 10,000 resamples draws complete test requests with replacement and recomputes pooled Recall. This preserves within-request dependence and uses seed 2026.
+
+\subsection{Development and Cache Replay}
+The stable limit=1000 experiment supplies the main forecasting result. Limit=100 experiments are used for module ablation, budget curves, calibration development, three-seed screening and cache replay. Cache replay evaluates LRU, fixed native-budget prefetching, unfiltered adaptive-mass prefetching and the full adaptive cache-aware policy at cache capacities of $1\times$, $2\times$ and $4\times$ the native working-set reference. We report hit rate, total expert transfers and prefetch precision. Replay does not simulate kernel execution or overlap and therefore cannot establish latency or throughput gains.
+
+Replay reports demand hit rate, total demand plus speculative transfers, and the fraction of prefetched experts used before eviction. These quantities distinguish residency benefit from movement cost.
+
+\section{Results}
+\subsection{RouteCast Improves Cross-Model Forecasting}
+Table~\ref{tab:main} and Fig.~\ref{fig:main} report the stable limit=1000 result. RouteCast achieved Recall@8 of 0.5558 on Qwen3 and 0.3172 on DeepSeek-R1, and Recall@1 of 0.3602 on Llama4 Maverick. It was the best evaluated method for every model and metric. TCN-only slightly exceeded GRU-only on native-budget Recall, making it the stronger temporal baseline. RouteCast exceeded TCN-only by 0.0281, 0.0455, and 0.0579 on the three models. The corresponding paired request-level 95\% bootstrap intervals were $[0.0265,0.0299]$, $[0.0403,0.0510]$, and $[0.0546,0.0610]$; all excluded zero. RouteCast also exceeded GRU-only by 0.0290, 0.0467, and 0.0665. These comparisons show that the gain cannot be attributed solely to recurrent or convolutional encoding of route history.
+
+\begin{figure*}[!t]
+\centering
+\begin{minipage}[c]{0.64\textwidth}
+\centering
+\includegraphics[width=\linewidth]{figures_final/Fig2a_MainComparison}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.33\textwidth}
+\centering
+\includegraphics[width=\linewidth]{figures_final/Fig2b_RequestBootstrap}
+\end{minipage}
+\caption{Cross-model forecasting under the stable limit=1000 protocol. Left: native-budget Recall under matched request-disjoint splits and model-specific native $K$. Right: absolute RouteCast gains over GRU-only and TCN-only with 95\% paired request-level bootstrap intervals. RouteCast exceeds statistical, recurrent, and convolutional comparators across all three routing regimes.}
+\label{fig:main}
+\end{figure*}
+
+We additionally repeated matched RouteCast and TCN training with seeds 2024, 2025, and 2026 in the limit=100 development setting. RouteCast exceeded TCN for every model under every seed. Its mean Recall advantage was $0.0317\pm0.0017$ on Qwen3, $0.0196\pm0.0062$ on DeepSeek-R1, and $0.0219\pm0.0041$ on Llama4 Maverick (mean $\pm$ sample standard deviation across seeds; Fig.~\ref{fig:tcn-seeds}). This screening supports optimization stability, while the request-level bootstrap on limit=1000 remains the primary uncertainty analysis.
+
+\begin{table}[!t]
+\centering
+\caption{Native-budget limit=1000 results. Precision equals Recall at native K.}
+\label{tab:main}
+\scriptsize
+\setlength{\tabcolsep}{2.4pt}
+\begin{tabular}{llccc}
+\toprule
+Model & Method & Recall & MRR & NDCG \\
+\midrule
+Qwen3 & Heatmap & .4352 & .7969 & .4859 \\
+& Request-aware & .4330 & .7956 & .4834 \\
+& GRU-only & .5268 & .8893 & .5903 \\
+& TCN-only & .5277 & .8902 & .5936 \\
+& \textbf{RouteCast} & \textbf{.5558} & \textbf{.9013} & \textbf{.6208} \\
+\midrule
+DeepSeek-R1 & Heatmap & .2131 & .5087 & .2413 \\
+& Request-aware & .2121 & .5076 & .2402 \\
+& GRU-only & .2705 & .6715 & .3243 \\
+& TCN-only & .2717 & .6707 & .3265 \\
+& \textbf{RouteCast} & \textbf{.3172} & \textbf{.7131} & \textbf{.3743} \\
+\midrule
+Llama4 & Heatmap & .3298 & .4593 & .3298 \\
+& Request-aware & .3311 & .4653 & .3311 \\
+& GRU-only & .2938 & .4470 & .2938 \\
+& TCN-only & .3024 & .4451 & .3024 \\
+& \textbf{RouteCast} & \textbf{.3602} & \textbf{.4988} & \textbf{.3602} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Budget Expansion Reveals Model-Specific Cost}
+Increasing the number of prefetched experts raised coverage for every model, but the gain came with rapidly increasing waste (Fig.~\ref{fig:budget}). For Qwen3, moving from $K=8$ to 16 increased Recall from 0.5835 to 0.7886 while waste rose from 0.4165 to 0.6057. DeepSeek-R1 remained substantially harder: Recall rose from 0.2572 to only 0.3618 and waste reached 0.8191 at $K=16$. For Llama4, increasing $K$ from 1 to 8 raised Recall from 0.2848 to 0.6540, but 91.8\% of prefetched experts were false positives. These curves rule out ``prefetch more'' as a sufficient solution and motivate calibrated selection and abstention.
+
+\begin{figure*}[!t]
+\centering
+\begin{minipage}[c]{0.67\textwidth}
+\centering
+\includegraphics[width=\linewidth]{figures_final/Fig3_BudgetTradeoff}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.30\textwidth}
+\centering
+\includegraphics[width=\linewidth]{figures_final/Fig4_ComponentAblation}
+\end{minipage}
+\caption{Why fixed-width prediction is insufficient. Left: budget--quality trade-offs across the three routing regimes; dotted lines mark native $K$. Right: native-budget Recall change after removing route-evidence components. Wider candidate sets increase coverage but also waste, while branch utility varies by routing regime.}
+\label{fig:budget}
+\label{fig:ablation}
+\end{figure*}
+
+\subsection{Component Utility Depends on the Routing Regime}
+Cross-token history was the only ablated component whose removal degraded all three models (Fig.~\ref{fig:ablation}). Removing it reduced Recall by 0.0148 on Qwen3, 0.0226 on DeepSeek-R1 and 0.0056 on Llama4. Two-hop and prefill features helped Qwen3 but were neutral or harmful for the other families. In particular, removing two-hop or prefill evidence improved DeepSeek-R1 by approximately 0.0064 and 0.0069. The result supports conditional fusion rather than the stronger claim that every branch is universally beneficial.
+
+\subsection{Calibration Enables Adaptive Candidate Selection}
+Temperature scaling served two distinct purposes. First, it measured whether the score magnitude represented expert-membership confidence. Second, it controlled how quickly the categorical probability accumulated and therefore how many candidates satisfied Eq.~\eqref{eq:mass-selection}. Since temperature does not alter score order, any change in dynamic width comes from probability concentration rather than improved ranking.
+
+The fitted temperatures differed sharply across models: 0.82 for Qwen3, 0.32 for DeepSeek-R1, and 1.05 for Llama4 Maverick. Figure~\ref{fig:calibration-budget}a shows the corresponding test ECE. Scaling reduced ECE from 0.2894 to 0.2801 on Qwen3 and from 0.3827 to 0.2763 on DeepSeek-R1. For Llama4 Maverick, ECE changed from 0.1236 to 0.1250, a slight deterioration. Thus, temperature scaling substantially corrected DeepSeek-R1 confidence but did not improve every model. The low DeepSeek-R1 temperature indicates that its logits required sharpening; it does not imply higher forecasting accuracy.
+
+Validation then selected masses of 0.70, 0.95, and 0.50 for Qwen3, DeepSeek-R1, and Llama4 Maverick, respectively (Fig.~\ref{fig:calibration-budget}b). These choices produced average candidate widths of 11.75, 17.25, and 6.56, with validation Recall of 0.6120, 0.3786, and 0.6293. DeepSeek-R1 therefore required both the highest cumulative mass and the widest candidate set, yet achieved the lowest Recall. This result identifies a routing-regime limitation rather than a calibration failure: reshaping confidence cannot recover information absent from the route history. The model-specific operating points also rule out one global mass threshold as a reliable cross-architecture policy.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.96\columnwidth]{figures_final/Fig5_CalibrationSelection}
+\caption{Calibration and adaptive-budget selection. (a) Test expected calibration error before and after per-model temperature scaling. Lower is better. Scaling strongly improves DeepSeek-R1, modestly improves Qwen3, and slightly worsens Llama4 Maverick. (b) Validation-selected operating points. Labels report cumulative mass; coordinates show the resulting average candidate width and Recall. Full reliability diagrams and mass sweeps are provided in the supplementary figure package.}
+\label{fig:calibration-budget}
+\end{figure}
+
+\subsection{Selective Scheduling Changes Cache-Replay Outcomes}
+Prediction Recall does not determine cache utility because resident candidates require no transfer, wrong candidates can evict useful experts, and the same prediction budget has different consequences at different capacities. Figure~\ref{fig:cache-pareto} therefore plots cache hit rate against total expert transfers rather than reporting either quantity alone. Movement toward the upper-left indicates a better operating point.
+
+On Qwen3, the adaptive-cache policy achieved hit rates of 0.5345, 0.7197, and 0.8771 at capacities $1\times$, $2\times$, and $4\times$, requiring 1.00, 0.62, and 0.31 million transfers (Fig.~\ref{fig:cache-pareto}a). Relative to unfiltered adaptive mass, cache-aware rejection reduced transfers by 53--62\%. At $4\times$ capacity it retained nearly the same hit rate, 0.8771 versus 0.8775, while avoiding roughly 0.10 million transfers. At $1\times$, however, fixed native prefetching achieved a higher hit rate with only moderately more transfers, showing that aggressive rejection can discard useful predictions when capacity is tight.
+
+DeepSeek-R1 displayed the clearest failure boundary (Fig.~\ref{fig:cache-pareto}b). Fixed native prefetching achieved the highest hit rate at every tested capacity. The adaptive-cache policy reduced transfers relative to adaptive mass but did not recover the lost hit rate. This outcome is consistent with DeepSeek-R1's lower forecasting Recall: selective admission can suppress waste, but it cannot make weak candidates informative.
+
+Llama4 Maverick showed a different trade-off (Fig.~\ref{fig:cache-pareto}c). Adaptive cache achieved the highest hit rate at $2\times$ and $4\times$ capacity while using far fewer transfers than adaptive mass. Nevertheless, LRU remained cheaper in transfer count. The benefit is therefore conditional: selective prefetching improves residency quality when additional movement is acceptable, but it does not dominate demand-only caching on both axes.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.96\columnwidth]{figures_final/Fig6_CachePareto}
+\caption{Trace-driven cache Pareto analysis for (a) Qwen3, (b) DeepSeek-R1, and (c) Llama4 Maverick. Each curve contains cache capacities of $1\times$, $2\times$, and $4\times$; labels identify the adaptive-cache points. Upper-left movement is preferable because it combines higher hit rate with fewer transfers. Cache-aware rejection consistently reduces transfers relative to unfiltered adaptive mass, but the best policy depends on model and capacity.}
+\label{fig:cache-pareto}
+\end{figure}
+
+\FloatBarrier
+
+\section{Discussion}
+Discrete route histories retained predictive information across all three evaluated MoE families. TCN-only slightly improved over GRU-only in native-budget Recall, confirming that dilated temporal convolutions form a competitive history encoder. RouteCast nevertheless exceeded both models with paired confidence intervals above zero. The improvement therefore depends on more than the choice of recurrent or convolutional sequence encoder. Statistical priors stabilized sparse observations, temporal features captured recent deviations, and the gate adapted their contribution to context. No individual evidence branch was universally beneficial.
+
+Forecasting quality and prefetch utility must nevertheless be evaluated separately. Wider candidate sets increased Recall but were particularly inefficient for DeepSeek-R1 and Top-1 Llama4 Maverick. Calibration made candidate scores comparable within each model. Rejection and cache-aware admission then determined whether a candidate justified speculative movement. Cache replay shows that this separation limits transfer amplification, but it does not guarantee universal system gains.
+
+Three limitations bound these conclusions. First, public traces cannot measure transfer--compute overlap, exposed stalls, throughput, energy, or kernel overhead. Second, most scheduling and cache ablations use the limit=100 development setting; limit=1000 evidence currently covers the forecaster and primary baselines. Third, the learned comparators now include matched GRU and TCN models, but not a matched transformer. Limit=1000 multi-seed training and a current overhead benchmark remain necessary for a stronger systems claim.
+
+\section{Conclusion}
+RouteCast combines calibrated next-token expert forecasting with selective cache-aware prefetching. Under request-disjoint evaluation, it improved native-budget Recall, MRR, and NDCG across Qwen3, DeepSeek-R1, and Llama4 Maverick traces. Calibration and adaptive selection exposed the trade-off between coverage and speculative movement. Cache replay identified both transfer reductions and model-specific failure regions. These results support RouteCast as an algorithmic interface between forecasting and cache management, while end-to-end acceleration remains unverified.
+
+\appendix
+\section{Additional Evidence}
+The accompanying supplementary figure package contains dataset composition, development-stage history sensitivity, limit=100 versus limit=1000 scale comparison, three-seed screening, legacy layer heterogeneity, calibration metrics, a legacy gate-overhead benchmark and the complete cache-replay tables. Legacy Qwen-only panels are labelled explicitly and are not used as evidence for the cross-model RouteCast V3 claim. The former 3-by-3 cache matrix is supplied separately rather than embedded as an unreadable composite figure.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.95\columnwidth]{figures_final/FigS1_SeedStability}
+\caption{Development-scale stability screening over seeds 2024, 2025, and 2026. Small translucent points denote individual runs; large markers and error bars denote mean $\pm$ sample standard deviation. RouteCast exceeds the matched TCN-only baseline for all nine model--seed pairs.}
+\label{fig:tcn-seeds}
+\end{figure}
+
+\begin{thebibliography}{00}
+\bibitem{pregated} R. Hwang et al., ``Pre-gated MoE: An algorithm-system co-design for fast and scalable mixture-of-expert inference,'' in \emph{Proc. ISCA}, 2024.
+\bibitem{moeinfinity} L. Xue et al., ``MoE-Infinity: Efficient MoE inference on personal machines with sparsity-aware expert cache,'' arXiv:2401.14361, 2024.
+\bibitem{promoe} X. Song et al., ``ProMoE: Fast MoE-based LLM serving using proactive caching,'' arXiv:2410.22134, 2024.
+\bibitem{patterns} Z. Yu et al., ``Patterns behind chaos: Forecasting data movement for efficient large-scale MoE LLM inference,'' arXiv:2510.05497, 2026.
+\bibitem{specmd} D. Hoang et al., ``SpecMD: A comprehensive study on speculative expert prefetching,'' arXiv:2602.03921, 2026.
+\bibitem{stmoe} Y. Zhao et al., ``A spatio-temporal expert prefetching framework for efficient MoE-based LLM inference,'' arXiv:2606.15453, 2026.
+\bibitem{specprefetch} J. Kong et al., ``SpecPrefetch: Parameter-efficient expert prefetching for sparse MoE foundation models,'' arXiv:2607.24787, 2026.
+\end{thebibliography}
+
+\end{document}

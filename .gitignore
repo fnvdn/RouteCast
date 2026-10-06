@@ -1,0 +1,55 @@
+# Local environments and vendored packages
+.venv/
+python_packages/
+
+# Large datasets and generated feature caches (kept locally, never in Git)
+data/**
+!data/README.md
+
+# Historical archive and local paper library
+archive/
+reference/
+
+# Python/editor/build noise
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.vscode/
+.idea/
+*.tmp
+*.bak
+
+# Runtime logs and disposable smoke-test artifacts
+*.log
+code/_smoke*
+code/models/**/*last.pt
+code/models/_smoke*
+record/paper/tmp/
+
+# Large publication exports; keep compact PDF/PNG/SVG versions
+record/paper/figures/**/*.tif
+record/paper/figures/**/*.tiff
+
+# LaTeX build products
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+
+# Credentials and machine-local configuration
+.env
+.env.*
+!.env.example
+hf_token.txt
+github_token.txt
+access_token.txt
+secrets.*
+credentials.*
+

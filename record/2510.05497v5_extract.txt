@@ -1,0 +1,2026 @@
+Patterns behind Chaos: Forecasting Data Movement
+for Efficient Large-Scale MoE LLM Inference
+Zhongkai Yu
+UCSD
+La Jolla, USA
+zhy055@ucsd.edu
+Yue Guan
+UCSD
+La Jolla, USA
+y9guan@ucsd.edu
+Zihao Yu
+Indiana University Bloomington
+Bloomington, USA
+yuzih@iu.edu
+Chenyang Zhou
+Columbia University
+New York, USA
+cz2791@columbia.edu
+Zhengding Hu
+UCSD
+La Jolla, USA
+zhh068@ucsd.edu
+Shuyi Pei
+Samsung Semiconductor
+San Jose, USA
+shuyi.pei@samsung.com
+Yangwook Kang
+Samsung Semiconductor
+San Jose, USA
+yangwook.k@samsung.com
+Yufei Ding
+UCSD
+La Jolla, USA
+yufeiding@ucsd.edu
+Po-An Tsai
+NVIDIA
+Santa Clara, USA
+poant@nvidia.com
+Abstract—Large-scale Mixture of Experts (MoE) Large Lan-
+guage Models (LLMs) have recently become the frontier open-
+weight models, achieving remarkable model capability similar to
+proprietary ones. But their random expert selection mechanism
+introduces significant data movement overhead that becomes the
+dominant bottleneck in multi-unit LLM serving systems.
+To understand the patterns underlying this data movement, we
+conduct comprehensive data-movement-centric profiling across
+four state-of-the-art large-scale MoE models released in 2025
+(200B-1000B) using over 24,000 requests spanning diverse work-
+loads. We perform systematic analysis from both temporal and
+spatial perspectives and distill six key insights to guide the design
+of diverse serving systems. We verify these insights on both future
+wafer-scale GPU architectures and existing GPU systems. On
+wafer-scale GPUs, lightweight architectural modifications guided
+by our insights yield a 6.6x average speedup across four 200B–
+1000B models. On existing GPU systems, our insights drive the
+design of a prefill-aware expert placement algorithm that achieves
+up to 1.25x speedup on MoE computation. Our work presents
+the first comprehensive data-centric analysis of large-scale MoE
+models together with a concrete design study applying the learned
+lessons. Our profiling traces are publicly available at https:
+//huggingface.co/datasets/core12345/MoE expert selection trace.
+Index Terms—Mixture of Experts, Large Language Model,
+Wafer-Scale GPU, Profiling, LLM Serving System
+I. INTRODUCTION
+Large Language Models (LLMs) have demonstrated re-
+markable capabilities across diverse domains, including pro-
+gramming assistance [1], [2], translation [3], [4], and chat-
+bots [5], [6]. Since the beginning of 2025, large-scale Mixture
+of Experts (MoE) LLMs (200B+ model with 100+ experts)
+have become the leading models for frontier LLMs [7] and
+the most widely used open weight models.
+Unlike dense LLMs that activate all model weights uni-
+formly, MoE models dynamically route each token to only a
+subset of experts, introducing substantial data movement over-
+head. Such overhead already exceeds 50% of execution time
+for small models (e.g., Mixtral 8x7B) on modest systems (2–4
+GPUs), and it exacerbates further with larger models such as
+0Accepted to ISCA 2026. This is the authors’ preprint version.
+JetMoE
+Mixtral8x7B Openmoe-34B
+DBRX Jamba
+Grok1
+Qwen1.5-MoE
+Mixtral8x22BDeepSeek-Coder-V2
+Phi-3.5-MoE
+DeepSeek V3Llama4-Mrv
+Qwen3-235B
+Kimi K2DeepSeek V4
+GLM-5
+8
+40
+200
+1000
+2023 2024 2025 2026
+Parameter Size (B)
+LLMs with limited 
+prior study
+LLMs with
+no study
+SOTA LLMs ﬁrst
+proﬁled in our work
+LLMs Released
+after our work
+Figure 1. MoE LLM models sizes and release dates. Bubble size indicates
+the number of experts in each layer. Prior studies [13], [15]–[17] provide
+limited analysis of smaller models from narrow perspectives, while our work
+presents the first comprehensive analysis of multiple unstudied SOTA models.
+DeepSeek V3 with 32×experts and 15×parameters deployed
+on multi-node systems (32+ GPUs) [8], [9]. Moreover, this
+scaling trend is accelerating: recent releases such as DeepSeek
+V4 [10] and GLM-5 [11] continue to push the frontier, making
+the associated data movement patterns ever more critical.
+Yet as shown in Figure 1, no prior work has systematically
+investigated these patterns at scale. Earlier studies [12]–[14]
+confined themselves to profiling one or two small MoEs on
+limited hardware, reporting surface-level observations without
+system-level insights. As parameter sizes and expert counts
+surge, new data movement patterns have emerged but remain
+unexplored, leaving significant optimization opportunities on
+the table.A comprehensive characterization of data move-
+ment in SOTA MoE models therefore presents a fruitful
+opportunity for better efficiency.
+If data movement in MoE models were fully unpredictable,
+it would present significant challenges for deployments on
+multi-unit systems.From a temporal perspective, the ex-
+plosive growth in expert combinations would make it im-
+possible to prefetch, cache, or replicate experts in advance.
+arXiv:2510.05497v5  [cs.DC]  12 May 2026
+For example, large-scale MoE models like DeepSeek V3 have
+C 8
+256 = 4,426,165,368combinations in expert selection. When
+served with host memory-offload systems, such unpredictabil-
+ity would result in data movement like expert migrations be-
+tween GPU and host, incurring substantial overhead, as inter-
+unit communication becomes the primary bottleneck.From a
+spatial perspective, if expert selection were truly random, it
+would lead to severe workload imbalance across units. When
+queries from diverse tasks are served concurrently, the number
+of queries assigned to each expert would vary dramatically,
+creating significant workload disparities. Consequently, most
+units would remain idle and wait for heavily loaded units to
+finish, resulting in poor hardware resource utilization.
+Fortunately, as we later show in the paper,MoE expert
+selections indeed have predictability that designers can
+exploit to reduce data movement.To uncover the inher-
+ent patterns in MoE models, we conduct a comprehensive
+data-movement-centric profiling of four state-of-the-art MoE
+models ranging from 235B to 1000B parameters released
+in 2025. As highlighted in Figure 1, we profile DeepSeek
+V3 [18], Llama4 Maverick [19], Qwen3-235B [20], and Kimi
+K2 [21] across 24,000 requests involving varied tasks, topics,
+and languages, which consumes>2000 GPU hours in total.
+We then collect the expert selection trace of all layers and
+tokens in each request to create an expert selection database
+of over 150 GB JSON files. From these extensive traces, we
+conduct a comprehensive analysis to uncover data movement
+patterns from both temporal and spatial perspectives, making
+our findingssystem-agnosticand applicable to various serving
+architectures at any scale. We then distill six key insights that
+serve as a solid foundation to understand MoE data movement
+and directly inform future MoE LLM serving system design,
+addressing critical questions that have remained unanswered
+in the field, such as:Is there a correlation between previously
+selected experts and those selected later? Are there discernible
+rules underlying the observed expert selection skewness? Do
+different tasks tend to activate different experts?Our work
+represents the first systematic effort to characterize data move-
+ment patterns at the scale of up-to 1000B model across a wide
+range of tasks, providing actionable insights that can guide the
+design of next-generation MoE serving systems.
+To demonstrate the broad applicability of our insights, we
+present case studies on both future and existing GPU systems.
+On the architecture side, we observe that modern GPUs have
+already adopted multi-chiplet designs due to single-die size
+limitations [22]–[24] and are evolving toward wafer-scale
+integration enabled by emerging on-wafer packaging technolo-
+gies [25], [26]. Targeting this trend, we develop a two-level
+data-placement-aware command processor and a hardware-
+managed HBM scheme that jointly balance workload across
+dies and reduce inter-die communication, achieving an average
+6.6×speedup in MoE serving throughput on wafer-scale
+GPUs. On existing multi-GPU systems, we observe that prefill-
+stage expert selections can effectively predict decode-stage
+behavior. Building on this observation, we propose prefill-
+aware expert placement algorithms to reduce decode workload
+0%20%40%60%80%100%
+SGLang 16xH20SGLang 72xH100Default 256xH800Total Time
+MoE All-to-AllMoE WeightAttn All ReduceAttn KV CacheAttn Weight
+Figure 2. Latency breakdown for different data movement in DeepSeekV3
+(4K sequence), modeled after various serving configurations [18], [27], [28].
+imbalance, and achieve up to 1.25×speedup. Our main
+contributions can be summarized as follows:
+•We propose a comprehensive and systematic data-
+movement-centric profiling across four latest, large-scale
+MoE models released in 2025 between 235B and 1000B
+to uncover the data movement patterns from both tempo-
+ral and spatial perspectives.
+•We distill six key insights for designing efficient MoE
+serving systems based on our profiling and analysis,
+providing actionable guidance that can inspire future
+research in MoE serving systems.
+•Leveraging these insights, we conduct case studies on
+both future and existing GPU systems. On future wafer-
+scale GPUs, we improve MoE throughput by 6.6×with
+minor hardware modifications. On existing multi-GPU
+systems, we achieve up to 1.25×speedup on an 8×H100.
+•We collect over 70,000 expert selection traces across
+multiple models and datasets, totaling over 150 GB in
+JSON format, and have open-sourced all traces with our
+multi-chiplet simulator to facilitate future research.
+II. BACKGROUND
+A. LLM and MoE Model Architecture
+Most state-of-the-art LLMs adopt a decoder-only trans-
+former architecture that follows a token-by-token auto-
+regressive workflow [29]. As shown in Figure 3(a), after
+users input queries, the serving process is divided into two
+stages: the prefill stage and the decode stage. During the prefill
+stage, all input tokens are processed simultaneously to generate
+the first output token. The decode stage follows immediately,
+where tokens are generated sequentially. The generated token
+from each iteration is appended to the input sequence to
+produce the next token in the following iteration.
+The Mixture of Experts (MoE) mechanism is a state-of-the-
+art approach to improve LLM performance and has become
+prevalent among current frontier LLMs [30]. As shown in Fig-
+ure 3(b), MoE-based LLMs replace the feed-forward network
+(FFN) layers in traditional LLMs with MoE layers. In each
+layer, multiple experts are deployed, and each request is routed
+to a small subset of the most suitable experts based on a gating
+mechanism. This innovation enables MoE models to scale
+model parameters without incurring extra inference overhead,
+since only a fraction of parameters are activated for each
+request. However, this mechanism also introduces dynamic
+randomness, since expert selection is unknown until gating
+is completed, posing new challenges for serving systems.
+D
+C
+D
+D
+C
+C
+B
+B
+B
+A
+A
+A
+OnceIYes
+uponamit
+aais Tell a story Who are you Is Apple red ...
+Decode Stage
+LLM Iter 1
+...
+Preﬁll Stage
+LLM Iter 2
+...
+LLM Iter 3
+...
+Ob3: Preﬁll-decode LevelOb2: Token LevelOb1: Layer Level
+ Temporal Relation
+Attention
+MoE
+Layer
+Spatial Relation
+Ob4: Single ExpertOb5: Expert Pair
+(a) MoE-LLM inference process and temporal relations(b) MoE operation and spatial Relation
+LLM Iter 0Layer 0
+...Layer 1
+Layer N
+Requests Expert 0
+Expert 1
+Expert 2
+Expert 3
+Expert 4
+Expert 5
+ABCD
+MoE Operation Req Num
+Gating
+Figure 3. Inference process of MoE LLMs and the categorization method for our proposed data-centric profiling approach.
+B. Prior MoE Serving Systems
+The MoE mechanism constitutes the primary source of data
+movement overhead in modern serving systems. As illustrated
+in Figure 2, take DeepSeek V3 as an example, MoE-related
+data movement (MoE All-to-All and MoE Weights) dominates
+the overhead across different serving configurations, account-
+ing for 60%-90% of total latency under 4K sequence length.
+To address this , existing research has developed numerous
+system-level solutions targeting different performance and
+cost objectives. Edge systems like MoE-Lightning [31] and
+CoServe [32] employ CPU memory offloading techniques
+to address GPU memory capacity constraints, while cloud
+systems such as Comet [9] and MegaScale-Infer [15] target
+multi-GPU systems and address GPU-GPU communications
+in MoE for higher throughput. Novel hardware architectures
+like Duplex [33] explore processing-in-memory to accelerate
+data movement in MoE LLMs.
+However, these prior studies employ asystem-centric
+methodology when optimizing for MoE LLMs. Namely, they
+inherently focus on a specific platform and the corresponding
+data movement patterns of MoE in such platform (e.g., CPU-
+GPU, multi-GPU, ML accelerators). As a result, they propose
+deployment-specific optimizations that may not generalize
+across different serving platforms, and their insights are often
+a slice of the overall inherent patterns in MoE LLMs.
+In this work, we flip the process and adopt amodel-centric
+strategy by conducting system-independent profiling to extract
+system-agnosticinsights about MoE data movement patterns.
+These insights are therefore broadly applicable across various
+platforms, providing a foundation for optimization strategies
+that transcend specific system implementations.
+III. MOE PROFILING ANDSYSTEMINSIGHTS
+In this section, we conduct a data-movement-centric pro-
+filing of the expert selection behavior in four state-of-the-
+art MoE models: Deepseek V3 (671B), Llama4-Maverick-
+128E (402B), Qwen3-235B (235B), and Kimi K2 (1000B).
+All results are averaged over more than 24,000 requests.
+A. Categorization Methodology
+As in Figure 3, we categorize MoE expert selection profiling
+results into two categories:temporalandspatialrelations.
+Figure 4. Cross-layer expert correlation. (a, b) Joint co-activation heatmaps
+between layersNandN+1in DeepSeek-V3 and Qwen3. (c) Conditional
+CDFP(e j |e i)for each layer’s top-1 expert.
+Temporal relationscapture time-dependent expert selection
+patterns where current choices inform future selections. These
+patterns enablesingle-unit strategiesthat optimize data move-
+ment for individual units through prefetching, caching, and
+data migration. For example, in multi-chiplet GPU systems,
+caching experts in local DRAM after remote fetches signifi-
+cantly reduces inter-unit communication. To exploit temporal
+predictability, we analyze expert selection at multiple time
+scales shown in Figure 3(a):layer-level,token-level, and
+prefill-decode-levelpatterns.
+Spatial relationscapture how expert activations are dis-
+tributed across compute units within a given time window. This
+distributional information enablesmulti-unit strategiesthat
+optimize expert placement and workload balancing across the
+system, reducing data movement and preventing bottlenecks.
+We classify spatial relations intosingle-expert activation im-
+balanceandexpert-pair co-activation affinityas shown in
+Figure 3(b), and investigate how task types influence these
+patterns to inform system-level optimization.
+B. Temporal Relations
+As shown in Figure 3(a), we classify the temporal relations
+of expert selection into three categories, arranged in order
+of increasing time scale. At the layer level, we examine the
+relationship between two adjacent model layers. At the token
+level, we focus on the same model layer across two adjacent
+tokens. At the stage level, we analyze the relationship between
+the prefill stage and the decode stage.
+1)Layer-Level Correlation:(Ob1)
+As shown in Figure 4 (a) and (b), we present heatmaps for
+Figure 5. Cross-token expert correlation. (a, b, c) Joint co-activation heatmaps between tokenstandt+1in DeepSeek-V3, Llama 4, and Qwen3. (d)
+Conditional CDF for each layer’s top-1 expert: top 20% of the next-token expertalready covers most of probability mass.
+Figure 6. Expert activation patterns remain consistent across prefill and
+decode stages for both (a, b) cross-layer heatmap and (c, d) cross-token
+heatmaps. Spearman’s ratio quantified in (e, f) shows a strong relation (≥0.7).
+Deepseek and Qwen illustrating expert selection relationships
+across adjacent layers. Each pixel in the heatmap displays the
+conditional probability of selecting expertjin the next layer
+given that expertiwas activated in the previous layer, with
+bright colors indicating higher probabilities.
+The heatmaps reveal clear cross-layer correlations with
+white dots highlighting specific expert pairs with significantly
+higher selection probabilities across adjacent layers. However,
+correlation patterns vary across layers within the same model
+and differ between models due to architectural variations. For
+instance, patterns between layers 3-4 differ from those between
+layers 30-31. Qwen3’s notably brighter heatmap indicates
+stronger cross-layer correlations than Deepseek. Beyond the
+white dots, there are also consistent bright vertical lines,
+suggesting certain experts are frequently chosen regardless
+of previous layer selections. These patterns indicate generally
+popular experts, analyzed further in Sec. III-C1.
+To quantify these relationships, we analyze the conditional
+CDFP(e j |e i)in Figure 4(c): the top 20% of next-
+layer candidates already cover 50%, 65%, 77%, and 56% of
+the conditional probability mass for DeepSeek-V3, Qwen3,
+Llama 4 1, and Kimi K2, respectively. This reveals strong,
+model-dependent cross-layer correlations, with Llama4 show-
+ing the strongest effect and Deepseek the weakest.
+2)Token-Level Correlation:(Ob2)
+We examine expert selection relations for the same layer
+between adjacent tokens in Figure 5. Each pixel in the heatmap
+displays the conditional probability of selecting expertjin the
+next token given that expertiwas activated in the previous
+token, with bright colors indicating higher probabilities.
+Similar to layer-level patterns, cross-token heatmaps exhibit
+white dots, bright vertical lines, and variation across layers and
+models, indicating correlations between adjacent tokens. How-
+ever, token-level relations reveal a common pattern appearing
+across all models: the bright diagonal line that indicates the
+tendency to select the same expert across adjacent tokens. This
+diagonal pattern emerges predominantly in higher layers (17
+and 43) but not in lower layers (1 and 3), regardless of models.
+We apply the same conditional-CDF analysis to the token-
+level relation. As shown in Figure 5(d), the top 20% of next-
+token expert candidates cover 47%, 62%, 80%, and 53% of the
+cumulative conditional probability in DeepSeek-V3, Qwen3,
+Llama 4, and Kimi K2, respectively, averaged across all MoE
+layers. The correlation is again strongest in Llama 4 and
+weakest in DeepSeek-V3.
+3)Prefill-Decode-Level Correlation:(Ob3)
+Building on the layer-level and token-level relations, we ob-
+serve notable similarities in expert selection patterns between
+prefill and decode stages. Comparing heatmaps across stages
+in Figure 6(a)(b)(c)(d), we find similar distributions of bright
+dots, indicating that expert pair heatmap during prefill and
+decode shares similarities. This cross-stage consistency sug-
+gests us that the prefill-collected information can guide initial
+decode steps until sufficient decode data accumulates.
+To quantify this similarity, we compute Spearman’s ratio
+(ρ) across all model layers, comparing prefill and decode
+heatmaps. Spearman’s Ratioρmeasures monotonic relation-
+ships between variables, ranging from−1(perfect negative
+correlation) to1(perfect positive correlation). Generally,|ρ|>
+1Llama 4 inserts dense FFN layers between MoE layers, so we pair adjacent
+MoE layers (NandN+2).
+0.2
+0.4
+0.6
+0.8
+1
+DS Llama Qwen Kimi
+0 45 90
+Spaerman's Ratio
+Layer 
+Frequency of
+Each Expert
+Overlap Rate (%)(b) PD Top Experts Overlap (Qwen3)(c) PD Expert Freq SimilarityLayer 
+(a) Qwen3 Preﬁll-Decode Expert Selction Freq (Layer66)
+PD fully irrelevant Baselines
+Figure 7. (a) Expert frequency distributions between prefill and decode stages
+exhibit similarity. (b) The most popular experts in the two stages overlap
+substantially. (c) All models show a high Spearman correlation between prefill
+and decode expert frequencies.
+0.7indicates strong correlation,0.4<|ρ| ≤0.7indicates
+moderate correlation, and|ρ| ≤0.4suggests weak correla-
+tion [34]. The results in Figure 6(e)(f) show that most layers
+demonstrate strong correlation, while a few show moderate
+correlation. This makes it possible to predict decode-stage
+expert selection with prefill-stage data.
+Beyond expert-pair heatmaps, we also identify prefill-to-
+decode correlation at the single-expert frequency level. As
+shown in Figure 7(a), the frequency distributions of prefill
+and decode stages are substantially similar, though some
+discrepancies exist among low-frequency experts. To examine
+the most popular experts, we report the overlap rate of top
+experts between stages in Figure 7(b): the top-5 prefill experts
+cover around 60% of the top-5 decode experts, rising to 75%
+and 90% for top-10 and top-20, respectively. This indicates
+that prefill information can help predict the hottest decode
+experts. The cross-model Spearman correlation in Figure 7(c)
+confirms this relationship holds across all four models.
+4)System Insights from Temporal Relation:The observed
+temporal relations in expert selection motivate us to design
+fine-grained, dynamic strategies on every single unit to reduce
+data movement. For example, when expert weights are read
+from remote memory, such as remote DRAM in multi-chiplet
+systems, or CXL extension memory in memory-disaggregated
+systems, caching, migration, and prefetching strategies can be
+deployed to reduce data movement.
+★Insight 1: Prefill-data-driven prediction (Ob3 ).Lever-
+age the expert selection trace from the prefill stage to
+predict expert selection during the decoding stage.
+Empirical analysis shows that expert selection patterns
+during prefill exhibit strong similarity to those during decode.
+Thus, expert selection information collected in the prefill phase
+can serve as a valuable reference for predicting decode-phase
+selections, particularly at the beginning of decoding when only
+a few tokens have been generated and historical context is
+scarce. Our section VI demonstrates how prefill information
+can guide expert placement during decode. This is especially
+relevant in modern PD-disaggregated serving systems, where
+Figure 8. Single-expert spatial relation analysis of Llama4 layer 7 shows:
+(a) non-uniform expert activation distribution; (b) expert selection strongly
+correlates with task type; (c) expert activation patterns shift significantly when
+language changes while content remains identical.
+the prefill and decode stages execute on separate machines.
+★Insight 2: Cross-hierarchy memory management
+(Ob1, Ob2 ).Token- and layer-level temporal relations
+enable dynamic expert prefetching and caching across
+memory hierarchies.
+Layer-level and token-level temporal relations are similar in
+definition but differ in reuse distance, making them suitable for
+different levels of the memory hierarchy. Layer-level relations
+exhibit short reuse distances because consecutive MoE layers
+execute in immediate succession, while token-level relations
+incur longer reuse distances because a new token is generated
+only after traversing all layers.
+This maps naturally onto the multi-level memory hierarchies
+in modern serving systems. For example, in multi-chiplet
+architectures, each die contains both an LLC and local DRAM,
+forming a two-tier hierarchy. The faster but smaller LLC is
+well-suited to managing experts with short reuse distances
+(layer-level), while the larger local DRAM accommodates
+experts with longer reuse distances (token-level). Accordingly,
+we can leverage layer-level relations for LLC management and
+token-level relations for DRAM management.
+This principle generalizes to other system configurations:
+CXL-based systems with local DRAM and remote CXL mem-
+ory, SSD offloading systems with DRAM and flash storage,
+and PIM systems with local and remote DRAM dies. In each
+case, layer-level relations guide the faster memory tier and
+token-level relations guide the slower one.
+C. Spatial Relation
+As shown in Figure 3(b), we analyze spatial patterns in
+expert selection for both single-expert activation imbalance
+and expert pair co-activation affinity. For single experts, we
+examine statistical skewness and the factors affecting each
+expert’s activation. For expert pairs, we analyze co-activation
+properties across all two-expert combinations.
+1)Single Expert Activation Imbalance:(Ob4)
+We examine expert selection frequency at each layer, present-
+ing results for layer 7 of Llama4 in Figure 8. We observe
+pronounced skewness where a subset of experts is activated
+over 16 times more frequently than average. This workload
+imbalance suggests system designs should duplicate or decen-
+tralize frequently used experts.
+To investigate selection patterns across different tasks, we
+analyze all 57 MMLU subjects spanning diverse fields, includ-
+ing biology, history, and math, etc [35]. Figure 8(b) shows
+the top 10 most popular experts for each subject. Horizontal
+bright lines indicate certain experts are consistently activated
+regardless of subject, while remaining popular experts vary
+significantly between subjects, demonstrating both overlap and
+distinction in task-based expert selection.
+We further examine task impact using the Chinese version
+of MMLU in MMLU Pro [36] with identical questions but
+different languages. Figure 8(c) reveals distinctly different
+patterns: although 5-6 experts remain popular across subjects,
+only two overlap with English MMLU’s most frequently
+selected experts. This confirms that task characteristics, includ-
+ing language, significantly influence expert selection, enabling
+task-aware serving systems that optimize expert distribution to
+balance workloads and reduce data movement.
+2)Expert Pair Co-activation Affinify:(Ob5)
+Beyond single expert patterns, we observe spatial relations for
+expert pairs where certain experts are more likely to be co-
+activated. We present co-activation heatmaps in Figure 9(a)(b),
+where both axes indicate expert IDs. Each pixel represents
+an expert pair with values showing co-activation frequency
+normalized by theoretical random selection probability:p=
+2
+n(n−1), wherenis the number of experts.
+Bright dots appear with probabilities 20-40 times higher
+than theoretical values, indicating strong co-activation ten-
+dencies. All heatmaps exhibit central symmetry since expert
+pair(i, j)equals(j, i). In Deepseek’s heatmap Figure 9(a),
+frequently activated pairs lie between red lines forming bright
+squares, reflecting Deepseek’s routing restriction where tokens
+are routed only to adjacent nodes to reduce communication
+overhead. This suggests the potential of separating co-activated
+expert pairs to balance workload.
+We quantify this relation by in Figure 9(c). The top 10% of
+expert pairs account for 60-80% of total activations, indicating
+strong skewness. This suggests the potential for separating
+co-activated expert pairs to balance the workload. We only
+analyze Deepseek and Qwen since Llama selects one expert
+per MoE layer, eliminating co-activation relations.
+3)System Insights from Spatial Relation:Spatial Relation
+enables coarse-grained, static strategies to address workload
+imbalance across the system. These strategies could be applied
+at system startup or during periodic redistribution (e.g., every
+10 minutes) through appropriate task distribution.
+★Insight 3: Expert-placement-aware workload distribu-
+tion (Ob4 , Ob5 ).Employ expert placement information to
+design workload-balanced task distribution strategies.
+Expert placement in serving systems can change dynam-
+Figure 9. Expert-pair co-activation affinity. (a)(b) Heatmaps for DeepSeek
+and Qwen. (c) CDF of co-activated expert pairs across all layers: a small
+fraction of expert pairs accounts for the majority of co-activations.
+ically due to expert migration strategies. Therefore, when
+allocating workload to system units, expert placement should
+be considered for better workload balance. Besides, the design
+space for task allocation could be enlarged with emerging
+new systems. Traditional multi-GPU systems tend to allocate
+experts to local GPUs to avoid cross-unit communication.
+However, in multi-chiplet GPUs, we can consider allocating
+tasks to remote dies for better workload balance as inter-unit
+communication becomes faster.
+★Insight 4: Popular expert decentralization (Ob4 ).Du-
+plicate or decentralize frequently used experts to balance
+workloads.
+Expert skewness causes workload imbalance and suboptimal
+resource utilization. Duplicating popular experts across multi-
+ple compute units distributes load more evenly. Additionally,
+avoiding co-location of highly popular experts in the same unit
+further enhances workload balance.
+★Insight 5: Expert-pair separation (Ob5 ).Separate fre-
+quently co-activated expert pairs to maximize parallelism.
+Certain experts are frequently activated simultaneously,
+exhibiting strong co-activation patterns. Assigning these co-
+activated expert pairs to different compute units maximizes
+hardware parallelism and prevents workload concentration
+on specific units. However, separation also introduces cross-
+unit communication overhead. The effectiveness depends on
+system topology and batch size, requiring careful trade-off
+between parallelism benefits and communication costs.
+★Insight 6: Workload-aware serving system (Ob4 ).
+Leverage the workload information, like task type and
+language, to make expert migration prior to serving.
+Hot experts vary by task and language. English queries, for
+instance, activate different expert subsets than Chinese queries.
+Providing task metadata during serving enables proactive
+expert placement: when workloads are predominantly English,
+systems can pre-duplicate or reassign English-relevant experts,
+reducing communication and balancing loads. This task-to-
+expert mapping requires only one-time offline profiling per
+model and can be reused throughout deployment, making the
+approach practical and efficient.
+IV. CASESTUDY1: WAFER-SCALEGPU ARCHITECTURE
+DESIGN FORMOE SERVING
+In this section, we adopt future GPU architecture design as a
+use case to validate our proposed insights. We follow Insight 3
+to design a task allocation algorithm and leverage the temporal
+relation insights (Insight 1 and Insight 2) to build a data-driven
+predictor. We also make slight architectural modifications to
+support the proposed strategies.
+A. Trend of Future GPU Architecture
+GPU vendors are increasingly adopting multi-chiplet ar-
+chitectures to overcome single-die performance limitations.
+As Moore’s Law approaches its limits [37] and single-die
+size remains constrained by photomask dimensions (800-
+1,000 mm 2), advanced packaging technologies like TSMC’s
+CoWoS [38], Samsung’s X-Cube [39], and Intel’s EMIB [40]
+enable multiple chiplets within a single package. Leading
+vendors have adopted such designs: AMD’s MI300 [22] in-
+tegrates eight compute chiplets, NVIDIA’s Blackwell features
+two chiplets [24], and upcoming Rubin expects four [41].
+This trend is evolving toward wafer-scale systems [42].
+TSMC’s System-on-Wafer (SoW) technology accommodates
+up to 24 compute dies and 96 HBM dies on a single wafer,
+exceeding 200,000 mm 2 [43]. As shown in Figure 10(a), a
+typical wafer-scale multi-chiplet GPU consists of multiple
+units, each containing a GPU die and several HBM dies
+interconnected in a mesh topology. Such systems contain
+over 3 TB of HBM and PFLOPS-level computing power,
+supporting extremely large models and batch sizes.
+The TSMC SoW technology shown in Figure 10(b) con-
+nects each GPU die to local HBM dies through local-silicon
+interconnects (LSI) [44], with adjacent GPU dies communicat-
+ing via LSI vertically or XSR SerDes links horizontally. Al-
+though LSI and SerDes both provide terabit-level bandwidth,
+inter-GPU-die communication remains the primary bottleneck.
+Remote data access requires multiple hops across die-to-die
+links, resulting in high latency. Simultaneous remote HBM
+access by multiple dies creates bandwidth contention and
+traffic congestion, further degrading performance.
+B. Background on Wafer-scale GPU Programming model
+The programming model of future wafer-scale chip remains
+an open question, but two major candidates have emerged: the
+multi-GPU-like and the single-GPU-like programming model.
+Multi-GPU-like programming model.WSC-LLM [26]
+and MoEntwine [45] adopt a multi-GPU-like programming
+model that exposes the entire wafer as a multi-GPU system.
+Programmers can program the wafer similarly to a conven-
+tional multi-GPU system, with the key difference being the
+2D mesh topology where each die communicates directly
+only with its neighbors. While this approach offers fine-
+grained control over individual dies and enables flexible soft-
+ware strategies, it diverges from current industry trends. For
+instance, although Blackwell and Rubin both integrate two
+compute dies, NVIDIA exposes no toolchain for fine-grained
+die-level control. Multi-Instance GPU (MIG) can partition a
+multi-die GPU into independent GPU instances, making each
+die act independently, but the high-speed D2D link is disabled
+in this mode [46], forcing inter-die communication through the
+10-100×slower NVLink or PCIe and negating the benefit of
+multi-die packaging. Therefore, extending this programming
+model to wafer-scale GPUs would require substantial archi-
+tectural changes to current GPU designs, including redesign-
+ing the D2D/C2C controller workflow and distributed LLC
+structure, making it infeasible in the near term.
+Single-GPU-like programming model.HDPAT [47], Hec-
+ton [48], and our work adopt a single-GPU-like programming
+model that exposes the entire wafer as a unified GPU, fully
+abstracting the multi-die topology and data placement from
+software so that the programming experience is identical to
+that of a monolithic GPU. We adopt this model for two key
+reasons. First, it aligns with commercial multi-chiplet GPUs
+such as Blackwell and Rubin, ensuring practical industry
+relevance. Second, it eliminates the programming complexity
+of explicit inter-die communication management through li-
+braries such as NCCL or NVSHMEM. However, this program-
+ming simplicity shifts the optimization burden entirely to the
+hardware. Given the inherently distributed architecture, local
+versus remote data access costs vary by up to 15×, yet the
+abstraction prevents programmers from controlling cross-die
+data movement. Consequently, architecture-level optimizations
+become critical to achieve high hardware utilization.
+C. Challenges of serving MoE with future GPUs
+Unlike current multi-GPU systems, wafer-scale GPUs can
+fit entire MoE models on a single chip and support batch sizes
+over 10,000. However, current GPU architectures introduce
+two key limitations for such large-scale chips.
+Simplistic Task Allocation.Current GPUs integrate a CPU
+in their SoC to serve as a command processor and allocate
+tasks to all SMs. However, the traditional command processors
+treat all SMs equally, ignoring their physical locations and data
+placement [49], [50]. This oblivious task-to-SM assignment
+generates excessive D2D traffic and ignores MoE expert
+selection skewness, leading to poor utilization when most dies
+remain idle while others become overloaded.
+Inadequate Local HBM Management.Current GPUs treat
+all HBM dies as uniform memory space, but wafer-scale GPUs
+connect each compute die directly to local HBM, where access
+is significantly faster than a remote HBM. Frequently accessed
+experts in remote HBM could be cached locally to minimize
+D2D traffic, but current GPUs do not distinguish between local
+and remote HBM and therefore generate unnecessary traffic.
+Global CP Memory
+Expertcp_enIs_local
+Prediction Table
+0 1 11 0 0
+255 1 0
+...
+...
+...
+(a) Architecture of Wafer-Scale GPU (c) Data in Global CP
+Global CP
+Wafer-Scale Multi-Chiplet GPU
+(b) System-on-Wafer (SoW) Technology
+HBMGPU Die
+LSI
+GPU DieHBMHBM
+RDL
+SerDes
+TIV
+RDL
+LSI UCIE
+Ctrl
+NoC
+LLC PDU
+D2D Ctrl
+...
+1
+2
+3
+4
+5
+1
+2
+3
+4
+ATU
+GPU Die
+Data
+Mem Ctrl
+SM SMLocal CP
+Cross-token Heatmap
+Expert Distribution Table
+ExpertInit DieDistribution
+0 0 1100...0
+1 0 0111...0
+255 24 0000...1
+...
+...
+...
+Global CP
+HBM Local CP
+SMHBM HBM
+HBM
+Unit
+2
+3
+SM
+MoE Kernel
+1
+4
+D2D Ctrl
+Local CP
+Figure 10. (a) Wafer-scale multi-chiplet GPU architecture with additional units highlighted in orange. (b) SoW (System-on-Wafer) technology structure. (c)
+Data format in the Global Command Processor for our proposed task distribution strategy.
+D. Motivation and Insights
+To address these challenges, we propose two strategies with
+architectural support. First, based on Insight 3 that identifies
+the need for expert-placement-aware task distribution, we pro-
+pose an intelligent task allocation algorithm with a multi-level,
+data-placement-aware command processor architecture. This
+approach considers expert placement and selection skewness
+across dies, enabling dynamic task allocation that minimizes
+D2D traffic while balancing workload.
+Second, leveraging Insight 1 and Insight 2 that reveal
+the predictability behind expert selection across differ-
+ent timescales, we introduce a data-driven predictor with
+hardware-managed HBM architecture. Local HBM caches fre-
+quently accessed experts from remote dies, while a lightweight
+predictor analyzes selection patterns to estimate future needs,
+caching predicted experts locally to reduce D2D traffic.
+To implement these two strategies under a single-GPU-
+like programming model, we a few architectural extensions to
+the GPU architecture. If future programming models evolve
+toward multi-GPU-like abstractions with finer-grained control
+over each die, these strategies could alternatively be realized
+at the system level without any architectural modification.
+E. Architecture Design
+1) Architecture Overview:To support our proposed predic-
+tor and task allocation algorithm, we implement two archi-
+tectural modifications with minimal overhead, as illustrated in
+Figure 10(a). These changes, highlighted in orange, consist of
+an enhanced Command Processor structure and an extended
+D2D controller design.
+First, we redesign the Command Processor (CP) with a two-
+level hierarchical structure: a Global CP at the wafer level and
+Local CPs within each die. The Global CP maintains system-
+wide expert selection and placement information for intelligent
+resource management. Second, we extend the D2D controller
+with an Address Translation Unit (ATU) and a Prediction Unit
+(PDU). The ATU translates remote HBM addresses to local
+addresses when remote data is duplicated, while the PDU
+identifies important remote data requiring duplication. These
+enable autonomous caching of remote data in local HBM
+and intelligent redirection of data requests, reducing inter-die
+communication overhead.
+2) Key Data Structures:There are two key data structures:
+Global CP data and the PDU prediction table.
+Global CP Data Structures: As shown in Figure 10(c), the
+Global CP maintains two structures. The expert distribution ta-
+ble stores each expert’s initial die ID and distribution status as
+ann-bit binary code, where each bit indicates expert presence
+on the corresponding die. The cross-token heatmap records
+expert activation patterns over time, providing historical data
+for prediction generation.
+PDU Prediction Table: Each PDU stores a prediction table
+with two key fields per expert: the cp en bit indicating whether
+the expert should be cached locally (calculated by Global
+CP and transferred to each die), and the is local bit tracking
+whether the expert is already cached in local HBM.
+3) Workflow During Kernel Launch:When a new kernel
+launches ( 1 ), the Global CP runs our task allocation algorithm
+to split the MoE kernel into per-die sub-kernels and executes
+the predictor to generate duplication guidance (cp en field is
+PDU). The Global CP then sends sub-kernels and prediction
+information to local CPs ( 2 ). Each local CP allocates tasks
+to its SMs ( 3 ) and configures the prediction table in the D2D
+controller for local HBM management ( 4 ). After computa-
+tion, local CPs collect expert duplication statistics and send
+them to Global CP to update expert distribution information.
+4) Dataflow for Remote Data Access:We integrate ATU
+and PDU into the D2D controller to support hardware-
+managed HBM by modifying the remote data access flow.
+With these two units, our architecture automatically duplicates
+important remote data in local HBM, with green lines repre-
+senting non-duplicated data reads and blue lines representing
+duplicated data reads, as shown in Figure 10(a).
+Remote Data Read (Non-duplicated): When an SM reads re-
+mote data not in local HBM ( 1 ), the D2D controller routes
+the request conventionally ( 2 ). Upon return, the PDU checks
+the Prediction Table to make a duplication decision and sends
+data to the SM regardless of the decision ( 3 ). If duplication
+is required, the PDU writes to LLC and local HBM ( 4 , 5 ),
+Algorithm 1:Task Allocation Algorithm
+Input:expert reqs dict,expert die map
+Output:allo plan
+1Initializethe workload of each die:load per die;
+2Sort(expert reqs dict, byreq numascending);
+3for(expert id, req num)inexpert reqs dictdo
+4candi list←GenCandidateList(expert id,dis= 1);
+5candi list←Sort(candi list,i7→load per die[i])
+whilereq num >0do
+6costs of dies←CostModel(candi list);
+7target die←Argmin(costs of dies);
+8allo plan.append([expert id,target die,req blk]);
+9Update(load per die);
+10req num←req num−req blk;
+11allo plan←MergeTasks(allo plan);
+12returnallo plan;
+13FunctionGenCandidateList(expert id,dis):
+14local die list=expert die map[expert id];
+15remote die list=FindNearDies(local die list,dis);
+16returnlocal die list+remote die list;
+updates the address into ATU, and sets the is local bit in
+PDU’s Prediction Table to 1.
+Local Data Read (Duplicated): When an SM reads remote
+data already cached in local HBM ( 1 ), the ATU translates
+the remote address to a local address and redirects the request
+to LLC ( 2 ). The LLC and memory controller then retrieve
+data and send it back to the SM( 3 , 4 ).
+5) Algorithm Design:This subsection presents our task
+allocation algorithm and data-driven predictor, both imple-
+mented by the global CP.
+Task Allocation Algorithm: Since accurate task distribution is
+NP-hard, we propose two heuristic mechanisms: a candidate
+mechanism that reduces the number of dies to consider and
+a block-granularity distribution mechanism that searches for
+approximate solutions among candidates.
+This algorithm splits MoE kernel computation into sub-
+tasks for individual dies based on expert selection and dis-
+tribution information. As shown in algorithm 1, the input
+expert reqs dictcontains the number of requests belonging
+to each expert, whileexpert die mapprovides dynamic
+expert distribution information from the Expert Distribution
+Table in Figure 10(c), indicating where each expert is stored.
+The algorithm iterates through all experts to generate al-
+location plans. For each expert, it creates a candidate die
+list including dies storing expert weights and their adjacent
+dies (shown as green and red in Figure 11(a)). We sort
+candidates by workload and limit the list tomax splitnum
+dies, determined by the expert’s request count (line 3-5).
+Requests are distributed to candidate dies in blocks of size
+50 to balance efficiency and accuracy (line 6-11). For each
+block, the algorithm selects the optimal die using our cost
+model, which considers DRAM access, computation, and die-
+to-die communication. Finally, we merge blocks allocated to
+the same die to generate the final allocation plan (line 12).
+Data-Driven Predictor: Our predictor algorithm, implemented
+by the global CP, uses current MoE kernel expert selection
+information to predict popular experts for the next token on
+SelectedExperts forCurrentToken:(1, 4)
+Cross-Token Heatmap
+Previous Token ExpertPopularExperts toDuplicateLocally:(2, 4, 6)
+1
+3
+(a) Task Allocation Algorithm (b) Data-Driven Predictor
+Find Top n Experts
+Next Token Expert
+2
+0 7
+7
+3 2 4
+8 7 5
+1 0 6
+9
+Local Die Remote Die
+Final Candidate Dies
+Wafer-Scale GPU
+Figure 11. Proposed task allocation algorithm and data-driven predictor.
+each die. This prediction result is transferred to local CPs
+and configured in each die’s PDU to guide hardware-managed
+local HBM. As shown by the red shadow in Figure 11(b),
+we first identify corresponding rows from the heatmap based
+on current expert selection ( 1 ), then select the topnexperts
+from each row ( 2 ) and identify corresponding experts for the
+next token as prediction results, denoted by the green shadow
+( 3 ). In this example, a die computes experts 1 and 4 during
+the current MoE kernel and we predict experts 2, 4, and 6
+will be used next. Since this die only reads experts 1 and 4
+currently, we duplicate only expert 4 in its local DRAM.
+V. EVALUATION
+A. Experiment Setup
+Methodology:We conduct experiments using event-driven
+simulation on a validated simulator. Expert selection traces
+are collected by deploying SGLang [51] on an 8×H100 DGX
+server and an 8×H200 AWS instance.
+We developed a custom multi-chiplet GPU simulator in
+Python, as existing tools are inadequate for our needs. Cycle-
+accurate simulators such as Gem5 [52], gpgpusim [53], and
+mgpusim [54] accurately model single GPUs but are pro-
+hibitively slow for large-scale systems with 20+ dies and
+batch sizes exceeding 15,000. Event-driven simulators such
+as ASTRA-sim [55] support multi-GPU systems but lack
+detailed microarchitecture modeling and do not support the
+single-GPU-like programming model we adopt. Our simulator
+models all key multi-chiplet GPU components, including LLC,
+HBM, compute units, and D2D links across all dies, with a
+central resource manager that captures contention and con-
+gestion. We validated the simulator against real measurements
+from an 8×H100 DGX server, as detailed in subsection V-B.
+Metric:We measure the throughput of MoE layers during
+the decode stage as modern LLM serving systems show a trend
+toward fine-granularity disaggregation. Traditional LLMs ben-
+efit from separating prefill and decode stages across different
+machines, as demonstrated by DistServe [56] and subsequent
+works [57], [58]. For MoE models, this disaggregation extends
+further. MegaScale-Infer [15] separates attention and MoE
+operations onto different machines for optimal batch sizes.
+Following this trend, we focus on optimizing MoE operations
+during the decode stage.
+0
+2
+4
+6
+8
+10
+12
+DeepSeek-V3
+1
+3.4
+7.9 7.98.1
+1
+3.3
+5.6 6.36.6
+1
+2.73.1 3.83.9
+Kimi-K2
+1
+3.7
+8.2 8.28.3
+1
+3.6
+6.9 7.37.6
+1
+3.24.3
+5.55.8
+Llama-4-Maverick
+1
+2.8
+6.2 6.56.7
+1
+2.8
+5.4 6.46.8
+1
+2.53.3
+4.85.8
+Qwen3-235B
+1
+2.73.7 4.85.4
+1
+2.32.4 3.33.5
+1 1.41.52.02.1
+0
+2
+4
+6
+8
+10
+12
+1
+3.7
+10.2 10.310.3
+1
+3.7
+7.2 8.18.4
+1
+3.13.9 4.85.0
+1
+4.0
+10.4 10.410.5
+1
+4.0
+8.7 9.29.6
+1
+3.6
+5.4
+6.97.2
+1
+3.1
+7.8 8.48.5
+1
+3.2
+7.0 8.18.5
+1
+2.9
+4.2
+6.0
+7.2
+1
+3.0
+5.0
+6.26.9
+1
+2.73.2 4.24.5
+1 1.81.82.42.6
+100
+101
+102
+103
+1
+4.4
+186.8
+189.3
+1
+4.5
+105.6
+168.9
+1
+4.5
+12.5
+91.9
+1
+4.7
+226.6
+227.5
+1
+4.8
+184.4
+203.0
+1
+4.8
+50.1
+149.6
+1
+4.0
+342.8
+414.1
+1
+4.4
+272.4
+336.1
+1
+4.4
+125.4
+261.7
+1
+3.8
+42.5
+171.5
+1
+4.3
+12.1
+106.1
+1
+4.5
+4.7
+75.4
+4096 8192 16384
+100
+101
+102
+103
+1
+4.6
+209.6
+212.4
+1
+4.6
+117.4
+189.9
+1
+4.6
+13.8
+103.0
+4096 8192 16384
+1
+4.9
+254.9
+256.1
+1
+5.0
+209.0
+229.2
+1
+5.0
+57.1
+170.1
+4096 8192 16384
+1
+4.2
+410.9
+479.9
+1
+4.5
+319.4
+384.4
+1
+4.6
+142.0
+299.6
+4096 8192 16384
+1
+4.0
+46.8
+192.9
+1
+4.4
+13.3
+117.7
+1
+4.6
+5.2
+83.7
+5×5 Wafer8×3 Wafer5×5 Wafer8×3 Wafer
+ThroughputHop Reduction
+Base(w/o proposed HW) EP (w/ proposed HW) Pred Only (w/ proposed HW) Allo Only (w/ proposed HW) Allo+Pred (w/ proposed HW)
+Base(w/o proposed HW) EP (w/ proposed HW) Pred Only (w/ proposed HW) Allo Only (w/ proposed HW) Allo+Pred (w/ proposed HW)
+Figure 12. Throughput of MoE layers (Top) and hop number reduction ratio (Bottom). All figures are scaled to baseline.
+Table I
+HARDWARECONFIGURATIONS
+X-die Y-die DRAM
+BW
+D2D
+BW DRAM Cmpt Power
+per Die (FP16)
+Dojo 5 5 3.35 TB/s 1.7 TB/s 80GB 989 TFLOPS
+TSMC-SoW 3 8 3.35 TB/s 1.7 TB/s 80GB 989 TFLOPS
+Dojo-Enhanced 5 5 8 TB/s 2 TB/s 180GB 4500 TFLOPS
+Other Params
+LLC hit latency: 100ns, LLC miss penalty: 110ns,
+LLC write latency: 30ns, LLC size: 64 MB
+D2D link latency: 200ns, Routing Alg: XY routing,
+Command and address size for each remote request: 16B
+Loca HBM access latency: 300 ns
+Hardware Configuration:We evaluate two multi-chiplet
+topologies: Tesla Dojo [59], [60] and the TSMC SoW
+roadmap [61]. As summarized in Table I, Dojo uses a 5×5
+2D mesh, while TSMC SoW adopts an 8×3 2D mesh. These
+choices reflect a deployed system (Dojo) and near-future
+industry support (TSMC SoW).
+For both the Dojo and TSMC SoW configurations, each
+chiplet is H100-like, providing 1,000 TFLOPS FP16 compute,
+80GB HBM, 3.35TB/s local HBM bandwidth, and 1.7 TB/s
+inter-die bandwidth to adjacent chiplets. We also include
+an extended experiment in subsection V-F with a Dojo-
+Enhanced configuration, where each die is B300-like to reflect
+an anticipated hardware performance trend in the future. We
+reserve 10% of DRAM for system and hardware management.
+Baseline Configurations:We compare our approach
+against the simple strategy currently used by GPU.
+TheBaseconfiguration adopts an EP-like data placement
+and assigns an equal number of experts to each die. How-
+ever, the entire wafer operates as a single large GPU: each
+die handles the same amount of expert computation without
+considering expert placement.
+EPassigns each expert’s computation to the die where
+it resides, as also adopted by MoEntwine [45]. This elimi-
+nates all D2D communication but can cause severe workload
+imbalance. Note that even under EP, our Global CP and
+Local CP architecture remains necessary, as expert placement
+information is still required.
+We implement three variants:Allo Onlyuses solely our task
+allocation strategy;Pred Onlyincludes only the data-driven
+predictor; andAllo+Predcombines both techniques. These
+configurations evaluate the individual and combined effects of
+our proposed methods.
+Models and Workloads:We conduct evaluations with real
+traces collected from Qwen3 and Deepseek V3. The traces are
+gathered from diverse datasets, including MMLU [35], MMLU
+Pro [36], ChineseSimpleQA [62], and LiveCodeBench [63],
+comprising over 24,000 requests per model. Each test batch is
+filled by sequentially adding requests in the order of MMLU,
+MMLU-Pro (CH), ChineseSimpleQA, and LiveCodeBench
+until the target batch size is reached.
+B. Validation of Simulator
+We validate our simulator using real measurements from an
+8×H100 DGX server. We evaluate both single-GPU execution
+and two-GPU peer-to-peer (P2P) communication.
+For single-GPU execution, we benchmark one expert in a
+MoE layer, which consists of three GEMM operations, across
+varying batch sizes for both DeepSeek and Qwen.
+For P2P communication, we measure data migration be-
+tween two GPUs over payload sizes ranging from 4 KB
+to 4 GB. To ensure simulation fidelity, we calibrate key
+parameters to fit the measured data. As shown in Figure 13,
+the simulator’s error remains within 5% for all test cases.
+00.511.5
+16326412825651210242048307240965120614471688192
+MoE Time(ms)
+0150300450
+4 KB16KB64 KB256 KB1 MB4 MB16 MB64 MB256 MB1 GB4 GB
+ActualBW(GB/s) Data Block Size
+Measurements of H100 DGXReported by Our Simulator
+Qwen 3Deepseek V3
+Figure 13. Simulator validation with real data generated from 8xH100 DGX,
+including both MoE Layer (Top) and P2P data transfer (Bottom) test cases.
+C. Throughput
+We evaluate MoE decode stage throughput in Figure 12,
+with results normalized to the baseline configuration.
+Comparison across models:Our Allo+Pred strategy
+achieves 7.0×, 8.2×, 7.3×, and 4.1×throughput improvement
+on Deepseek, Kimi, Llama, and Qwen, respectively. Deepseek
+and Kimi benefit more due to their larger expert count (256
+vs. 128) and more complex selection patterns.
+Comparison across chiplet architectures:Our strategy
+shows 6.0×improvement on Dojo and 7.5×on TSMC,
+despite similar die counts (25 vs. 24). TSMC’s rectangular
+layout places dies farther apart, introducing more inter-unit
+communication without strategic task allocation, hence the
+larger gain under our strategy.
+Comparison with EP:At small batch sizes such as 4096,
+our strategy and EP perform similarly: few tokens per expert
+make execution memory-bound, so splitting one expert across
+multiple dies offers no benefit, and our strategy degenerates to
+EP. The advantage emerges at larger batches, achieving 1.44×
+speedup over EP at batch size 16,384.
+D. Hop Reduction
+We report hop counts in Figure 12 to show the reduction in
+inter-unit communication. Hop count is the sum of Manhattan
+distances for all cross-unit communications. Higher hop counts
+indicate frequent cross-die data movement. We normalize
+results to baseline and report hop reduction ratios, where a
+ratio of 10 means the hop count is reduced to 1/10.
+Pred Onlyreduces hop counts by 4.5×, aligning with
+performance improvement of 3.0×. This indicates cross-unit
+communication is the primary bottleneck in baseline, and
+reducing hop counts proportionally improves performance.
+Allo Onlyreduces hop counts by 142×, exceeding the
+performance improvement of 6.3×. This shows that with our
+allocation algorithm, inter-unit communication is no longer
+the sole bottleneck. While reducing hop counts still improves
+performance, the improvement is not proportional.
+Allo+Predreduces hop counts by over 213×compared to
+baseline. However, performance improvement is only 6.63×
+over baseline, with just 1.1×average improvement over Allo
+0
+5000
+10000
+15000
+20000
+25000
+30000
+Base
+Pred Only
+Allo Only
+Allo+Pred
+DRAM Access (GB)
+Lcal RdRmt RdLcal Wt
+18000
+18500
+19000
+19500
+Figure 14. DRAM access breakdown for
+Qwen3 on TSMC-SoW Configuration with
+batch size 4096.
+0%10%20%30%40%50%
+DS V3 (256)DS V3 (8192)Qwen3 (256)Qwen3 (8192)
+Overhead
+DojoDojo-Enhanced
+Figure 15. Host CPU imple-
+mentation overhead under vary-
+ing models and batch sizes.
+Only. This demonstrates that hop count is no longer a per-
+formance bottleneck. With the help of our task allocation
+algorithm, most tasks are distributed to local dies holding
+related experts, with only extremely popular experts requiring
+remote allocation. This leads to minimal D2D traffic and shifts
+the bottleneck to workload distribution.
+E. DRAM Access Breakdown
+We provide a breakdown of DRAM access patterns in
+Figure 14 to show how our strategies reduce inter-unit com-
+munication. We categorize DRAM access into three types:
+reads from local dies, reads from remote dies, and writes to
+local dies, where writes to local dies only occur when we
+duplicate a remote expert locally. Most reads in the baseline
+are from remote dies, resulting in high inter-unit traffic and
+poor performance. With our strategies (Pred Only, Allo Only,
+and Allo+Pred), most remote DRAM reads are converted to
+local DRAM reads, significantly reducing traffic. Compared
+with Pred Only, Allo+Pred achieves fewer remote reads by
+allocating most tasks to local dies, with only extremely popular
+experts requiring computation across multiple dies. Compared
+with Allo Only, Allo+Pred further reduces remote reads by
+caching popular experts in local HBM.
+F . Comparison with Host CPU-Based Implementation
+Our task allocation algorithm runs on a new GPU command
+processor, but it could, in principle, be executed on the host
+CPU with a higher overhead. As shown in Figure 15, we
+evaluate both the Dojo and Dojo-Enhanced configurations.
+In Dojo, the overhead of host-CPU allocation is 5.2%–6.4%
+for DeepSeek V3 and 11.1%–14.2% for Qwen3. In Dojo-
+Enhanced, the overhead rises to 19.3%–23.8% for DeepSeek
+V3 and 42.0%–51.6% for Qwen3.
+DeepSeek vs Qwen:Qwen3 incurs higher overhead than
+DeepSeek V3 due to CPU–GPU data transfers over PCIe,
+which occur once per MoE layer. The CPU needs the Expert
+Distribution Table from the GPU to run the allocator, and
+the allocation results must be sent back to the GPU before
+kernel execution. Qwen3 has (i) more MoE layers (94 vs.
+58), increasing transfer frequency, and (ii) smaller per-layer
+compute, which amplifies the relative cost of transfers.
+E0 E3
+E4 E5 E6 E7
+E7
+E4 E5 E6
+GPU 0
+GPU 1
+Default Remap-Based Dup-Based
+> > >Expert Popularity: 
+Remap
+Extra-Slots
+E2E1 E0 E2
+E1
+E3 E0 E3
+E4 E5 E6 E7
+E2E1 E7
+Figure 16. Demonstration of expert placement strategies.
+Dojo vs Dojo-Enhanced:Dojo-Enhanced shows over 3.7×
+higher overhead than Dojo because its GPU dies are sig-
+nificantly faster, making fixed PCIe transfer costs dominate
+more. As GPU performance outpaces interconnect bandwidth,
+implementing the allocator in the GPU command processor
+becomes increasingly necessary to sustain performance.
+G. Area and Power Overhead
+We estimate the area and power overhead of all added mod-
+ules in Table II. Our design supports up to 100 layers with 512
+experts per layer, well beyond SOTA MoE model (Kimi-K2:
+61 layers, 384 experts). The full heatmap (50 MB) is stored in
+Global CP DRAM, with a 0.5 MB on-chip cache buffering
+one layer at a time. The Prediction Table is implemented
+in registers due to its small size; all other components use
+SRAM. Registers are synthesized with Yosys [64] and SRAM
+is modeled with CACTI [65], both scaled to 5 nm to match
+the H100 process node. Global and Local CP area estimates
+are derived from ARM core data. As shown in Table II, total
+area and power overhead is less than 0.04%.
+Table II
+AREA ANDPOWEROVERHEAD.
+Capacity Bit
+Width
+Num
+Per Wafer
+Tot Area
+(mm2)
+Tot Power
+(mW)
+Prediction Table 128 B 16 bit 25 0.0020 55.75
+Address Translation Unit 4.25 KB 68 bit 25 0.0048 334.25
+Local CP (A72) [66] N/A N/A 25∼7.5000∼7000
+Expert Distribution Table 4.5 KB 72 bit 1 0.0002 13.94
+Heatmap Cache 0.5 MB 512 bit 1 0.0278 184.67
+Global CP (A76) [67] N/A N/A 1∼1.1000∼1000
+Total 6.13 8588.61
+Overhead (25-die wafer)∼0.04%∼0.04%
+VI. CASESTUDY2: PREFILL-GUIDEDDECODEEXPERT
+PLACEMENT ONREALGPU CLUSTERS
+A. Introduction
+Workload imbalance is one of the biggest challenges in
+large-scale MoE serving (200+ GPUs). EPLB [68] addresses
+this by dynamically adjusting expert placement, but it is
+triggered every 3000+ steps and relies on periodically collected
+profiling data [69]. A natural question then arises: how to set
+expert placement for the initial∼1000 decode tokens when no
+profiling data are yet available? This is especially pressing for
+short-output requests, for which EPLB never collects enough
+data to be effective. Inspired by Insight 1 , which reveals
+temporal correlation between prefill and decode stages, we
+propose leveraging prefill-stage expert selection information
+to guide expert placement for initial decode steps.
+Algorithm 2:Prefill-Guided Expert Placement
+Input:Prefill tracesD, GPU countG, extra slots per GPUR
+Output:Per-layer expert-to-GPU assignment{S g}G
+g=1
+1Notation:E: total experts;f l,e: freq of experteat layerl;L g: load
+of GPUg;r g: remaining slots on GPUg;δ e,g:max g′ Lg′
+change after copying experteto GPUg
+2Functionremap_based_placement(D, G):
+3foreach layerldo
+4Computef l,e fromD; sort exps by decreasingCost(f l,e);
+5L g ←0for allg;
+6foreach expertein sorted orderdo
+7Assigneto least-loaded GPUg ∗ s.t.|S g∗ |< E/G;
+Lg∗ += Cost(f l,e);
+8return{S g}for each layer;
+9Functiondup_based_placement(D, G, R):
+10foreach layerldo
+11Computef l,e fromD; generate default placementS g;
+12r g ←Rfor allg;
+13L g ← P
+e∈Sg Cost(fl,e)for allg;
+14fori←1toR·Gdo
+15(e ∗, g∗)←arg min e,g:r g >0, g /∈hosts(e)δe,g;
+16Assigne ∗ toS g∗ ;r g∗ ←r g∗ −1;
+17update affectedL g;
+18return{S g}for each layer;
+As shown in Figure 16, we design two placement algorithms
+(details in algorithm 2). TheRemap-basedalgorithm keeps the
+number of experts per GPU unchanged and reassigns experts
+across GPUs for a more balanced workload: it sorts experts by
+decreasing roofline cost and greedily assigns each to the least-
+loaded GPU, subject to a uniform capacity ofE/Gexperts per
+GPU. TheDuplication-basedalgorithm reserves extra expert
+slots on each GPU and uses prefill traces to duplicate hot
+experts, thereby avoiding congestion: starting from the default
+contiguous layout (e.g., experts 0–15 on GPU,0, 16–31 on
+GPU,1, etc.), it greedily adds up toRextra replicas per GPU,
+selecting at each step the (expert, GPU) pair that maximally
+reduces the bottleneck loadmax g loadg; tokens of a replicated
+expert are evenly split among all its copies. Both algorithms
+use a roofline-based cost model to estimate per-GPU load.
+B. Methodology
+We deploy Qwen3-235B with SGLang on 8×H100 GPUs
+with NVLink. We build a distributed profiler by insert-
+ingcuda.Eventtimers into SGLang to measure indi-
+vidual operations (attention, top-k, all-to-all, and MoE) on
+each GPU independently. We manipulate expert placement
+through SGLang’sinit_expert_locationinterface and
+useDeepEPas the MoE backend. Theep_dispatch_-
+algorithmis set to “dynamic” so that tokens are evenly
+distributed across replicas of a duplicated expert.
+Metric.We report MoE computation time, i.e., all three
+expert linear layers, excluding attention, all-to-all, and top-k.
+Model and Benchmark.We evaluate on Qwen3-235B (94
+MoE layers, 128 experts per layer, 8 selected). We use MMLU
+and Global-MMLU datasets, following the original ordering.
+Batch sizes range from 64 to 16,384.
+4K 8K 16K 24K
+Batch Size
+0.0
+0.5
+1.0
+1.5MoE Speedup
+0.80
+1.00
+1.221.251.33
+0.56
+1.00 1.041.141.20
+0.51
+1.00 1.041.11
+1.25
+0.57
+1.00
+1.121.201.28
+Default Worst Best Remap(Ours) Dup(Ours)
+Figure 17. Performance of our prefill-aware expert placement.
+Baselines.Defaultis the standard contiguous placement
+used by Qwen and SGLang (experts 0–15 on GPU-0, 16–
+31 on GPU-1, etc.).BestandWorstare the theoretically
+optimal and worst placements generated with oracle decode-
+stage selections (not available in practice).RemapandDup
+are our two prefill-guided strategies. For Dup, we use one extra
+slot per GPU, yielding 128+8=136 experts per layer.
+C. Results
+As shown in Figure 17,RemapandDupachieve speedups
+of 15.5% and 12.5% overDefault, respectively, and deliver
+over 2×speedup compared withWorst. Both remain within
+10% ofBest, which exploits oracle decode-stage information
+unavailable in practice, which demonstrates the effectiveness
+of our approach. Since the two algorithms perform compara-
+bly, one can choose between them to fit different memory and
+system constraints.
+We note that our 8-GPU EP scale inherently limits the
+achievable improvement: with EP8, each GPU holds 16 ex-
+perts per layer, so every GPU likely contains a mix of hot and
+cold experts, naturally yielding a relatively balanced workload
+even under theDefaultlayout (the max/min execution-time
+ratio is only about 1.3×). We expect greater speedups at larger
+EP scales where load imbalance is more pronounced.
+VII. DISCUSSION
+Both the wafer-scale GPU architecture and the prefill-guided
+expert placement strategy serve as case studies demonstrating
+the practical applicability of our profiling insights, which
+constitute the paper’s primary contribution. Specifically, the
+wafer-scale GPU design follows Insight 3 for task allocation
+and leverages temporal relation insights (Insight 1 and part of
+Insight 2) to build a data-driven predictor. The prefill-guided
+placement strategy utilizes Insight 1 to guide decode-stage
+expert placement using information collected during prefill.
+Importantly, our insights extend far beyond these two case
+studies and can benefit a wide range of MoE serving systems,
+including multi-GPU clusters (Multi-Node DGX [9], [15],
+[70] and NVL72 [71]), CXL-/CPU-based memory disaggrega-
+tion [12], [31], flash-based multi-tier systems [72], [73], PIM
+architectures [33], [74], [75], and other emerging platforms.
+VIII. RELATEDWORK
+MoE model behavior studies:Several MoE model tech
+reports [76]–[79] provide the MoE routing patterns as part of
+their evaluation. For example, the Mixtral report [77] shows
+the temporal locality of expert selection by reporting the
+percentage of repetitive assignment. The OLMoE report [76]
+shows the co-activation pattern and domain specialization
+among the experts. A blog post from SGLang [28] shows
+expert distribution statistics for the DeepSeekV3 model and
+the inherent imbalance in expert selection and similarity be-
+tween prefill and decode. None of these studies provides a
+comprehensive profiling across multiple large-scale (>200B)
+MoE models, nor do they present a data-movement-centric
+methodology to highlight the opportunities like this paper.
+Data movement optimization for MoE LLM inference
+Various prior works [9], [16], [31], [33], [80]–[87] have
+focused on improving the efficiency of MoE LLM infer-
+ence by reducing data movement. For example, Lina and
+SmartMoE [81], [88] exploit expert selection skewness to
+dynamically schedule resources during inference and balance
+traffic across GPUs. LYNX [82] dynamically reduces active
+experts while preserving model accuracy. Pre-gate MoE [80]
+uses a pre-gating function to alleviate the dynamic nature of
+expert selection. Sida [85] builds an offline hash function to
+predict expert usage and reduce data movement between CPU
+and GPU. MoE-Lightning [31] leverages a CPU-GPU pipeline
+and paged weights to improve resource utilization. Eliseev and
+Mazur [84] exploit expert locality and leverage LRU caching
+to manage GPU and CPU memory. This work targets data
+movement reduction in MoE LLM inference. Our cross-model
+profiling reveals optimization principles that apply broadly to
+current and future systems regardless of scale.
+Wafer-Scale and Chiplet ArchitecturesAs single-chip scal-
+ing slows, wafer-scale and chiplet packaging offer promising
+paths for improved compute efficiency. Prior work targets
+either interconnect design [89]–[95] or data placement for spe-
+cific algorithms [25], [96] and applications [26], [97], [98]. In
+contrast, we are the first to study MoE LLM serving on wafer-
+scale GPUs and propose data-movement-centric HW/SW co-
+design optimizations.
+IX. CONCLUSION
+Unlike prior MoE serving studies that take system-centric
+approaches with deployment-specific strategies, we study MoE
+serving from a model-focused perspective. We conduct com-
+prehensive data-movement-centric profiling of state-of-the-
+art MoE models (200B–1000B) to extract system-agnostic
+insights, revealing structured patterns underlying seemingly
+random data movement and providing actionable guidance on
+system design. We validate these insights on both a future
+wafer-scale GPU architecture and existing multi-GPU sys-
+tems, achieving significant performance improvements through
+minimal architectural modifications and lightweight software
+design, demonstrating their broad applicability.
+ACKNOWLEDGMENT
+We thank all reviewers for their constructive feedback and
+insightful suggestions. This work is partially supported by
+Samsung Semiconductor.
+ARTIFACTAPPENDIX
+A.1 Abstract
+This artifact packages the code, traces, scripts, and plotting
+utilities for reproducing the paper’s main results across the
+two case studies.
+Case Study 1is a CPU-runnable wafer-scale GPU simulator
+for MoE inference. It evaluates our expert allocation and
+prediction strategies across four large-scale MoE models and
+two chiplet topologies, reproducing Figure 12.
+Case Study 2contains the real-GPU expert placement
+experiments and reproduces Figure 17 on an 8×H100 system.
+It requires a specialized GPU software stack. Both artifacts
+provide amain_ae.pyworkflow for downloading traces,
+running experiments, and generating figures.
+A.2 Artifact Check-List
+Program:Python 3.
+Run-time environment:Linux with Python≥3.10.
+Hardware:Case Study 1 requires a CPU server with≥64 GB
+RAM. Case Study 2 requires an 8×NVIDIA H100 80 GB GPU
+server.
+Output:Paper figures and CSV result files.
+Disk space:About 80 GB for one model and up to 300 GB
+for all four models.
+Experiment time:Case Study 1 takes 8–12 hours for one
+model or 18–36 hours for all models. Case Study 2 takes 12–
+16 hours.
+Publicly available:Yes.
+Code license:Apache-2.0.
+A.3 Description
+A.3.1 How to Access:Case Study 1 (wafer-scale GPU
+simulator):GitHub:waferscale_gpu_moe_sim; DOI:
+10.5281/zenodo.19617713.
+Case Study 2 (real-GPU expert placement):GitHub:
+moe_exp_placement; DOI: 10.5281/zenodo.19617695.
+Each repository contains aREADME.mdwith setup, exe-
+cution, and troubleshooting instructions. The Zenodo archives
+provide persistent snapshots of the evaluated artifact versions.
+A.3.2 Hardware Dependencies:Case Study 1 runs on a
+CPU server with at least 64 GB RAM and does not require a
+GPU. Case Study 2 requires an 8×NVIDIA H100 80 GB GPU
+server, CUDA 12.0 or newer, and about 300 GB of disk space.
+Reviewers without GPU access can still evaluate the primary
+simulator artifact.
+A.3.3 Software Dependencies:Case Study 1 requires
+Python≥3.10 plusnumpy,pandas, andmatplotlib;
+the scripts install them automatically. Case Study 2 addi-
+tionally requires PyTorch, a modified SGLang fork, DeepEP,
+and DeepGEMM. The repository documents exact installation
+commands and environment settings.
+A.3.4 Datasets:Both artifacts use pre-recorded MoE
+expert-selection traces from MMLU. The traces are hosted on
+HuggingFace and downloaded automatically by the AE scripts.
+A.4 Installation
+Installation instructions are provided in each repository’s
+README.md. Case Study 1 is self-contained and intended as
+the default AE path. Case Study 2 includes GPU stack and
+communication library setup.
+A.5 Experiment Workflow
+Both repositories provide amain_ae.pyentry point. The
+script downloads traces, runs experiments, collects CSV files,
+and regenerates the corresponding paper figure. Reviewers
+may also run individual model configurations using the repos-
+itoryREADME.mdcommands.
+A.6 Evaluation and Expected Results
+Case Study 1 reproduces Figure 12. The simulator is deter-
+ministic, so generated results should match the reported trends
+when using the same traces and configuration files.
+Case Study 2 reproduces Figure 17. Because it measures
+real GPU execution, small timing variations are expected from
+thermals, system load, NCCL non-determinism, and SGLang
+micro-batching. In our runs, variation is typically within
+±5%. The high-level result is stable: prefill-aware placement
+improves MoE kernel performance by about 5–25% over the
+default placement.
+A.7 Methodology
+Submission, reviewing, and badging follow the ACM arti-
+fact review guidelines and the cTuning AE guidelines.
+REFERENCES
+[1] D. Nam, A. Macvean, V . Hellendoorn, B. Vasilescu, and B. Myers,
+“Using an llm to help with code understanding,” inProceedings of the
+IEEE/ACM 46th International Conference on Software Engineering, ser.
+ICSE ’24, 2024.
+[2] Y . Wang, W. Wang, S. Joty, and S. C. H. Hoi, “Codet5: Identifier-aware
+unified pre-trained encoder-decoder models for code understanding and
+generation,”arXiv, 2021.
+[3] J. Achiam, S. Adler, S. Agarwal, L. Ahmad, I. Akkaya, F. L. Aleman,
+D. Almeida, J. Altenschmidt, S. Altman, S. Anadkatet al., “Gpt-4
+technical report,”arXiv, 2023.
+[4] Y . Lu, W. Zhu, L. Li, Y . Qiao, and F. Yuan, “Llamax: Scaling linguis-
+tic horizons of llm by enhancing translation capabilities beyond 100
+languages,”arXiv, 2024.
+[5] S. K. Dam, C. S. Hong, Y . Qiao, and C. Zhang, “A complete survey on
+llm-based ai chatbots,”arXiv, 2024.
+[6] S. Vakayil, D. S. Juliet, S. Vakayilet al., “Rag-based llm chatbot using
+llama-2,” in2024 7th International Conference on Devices, Circuits and
+Systems (ICDCS), 2024.
+[7] W.-L. Chiang, L. Zheng, Y . Sheng, A. N. Angelopoulos, T. Li, D. Li,
+B. Zhu, H. Zhang, M. Jordan, J. E. Gonzalezet al., “Chatbot arena: An
+open platform for evaluating llms by human preference,” inForty-first
+International Conference on Machine Learning, 2024.
+[8] S. Go and D. Mahajan, “Moetuner: Optimized mixture of expert serving
+with balanced expert placement and token routing,”arXiv preprint
+arXiv:2502.06643, 2025.
+[9] S. Zhang, N. Zheng, H. Lin, Z. Jiang, W. Bao, C. Jiang, Q. Hou, W. Cui,
+S. Zheng, L.-W. Chang, Q. Chen, and X. Liu, “COMET: Fine-grained
+computation-communication overlapping for mixture-of-experts,” in
+Eighth Conference on Machine Learning and Systems, 2025. [Online].
+Available: https://openreview.net/forum?id=fGgQS5VW09
+[10] DeepSeek-AI, “DeepSeek-V4: Towards highly efficient million-token
+context intelligence,” Technical report, 2026. [Online]. Available:
+https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash
+[11] GLM-5 Team, A. Zeng, X. Lv, Z. Hou, Z. Du, Q. Zheng, B. Chen,
+D. Yinet al., “GLM-5: from vibe coding to agentic engineering,”arXiv
+preprint arXiv:2602.15763, 2026.
+[12] Z. Fang, Y . Huang, Z. Hong, Y . Lyu, W. Chen, Y . Yu, F. Yu, and
+Z. Zheng, “Klotski: Efficient mixture-of-expert inference via expert-
+aware multi-batch pipeline,” inProceedings of the 30th ACM Interna-
+tional Conference on Architectural Support for Programming Languages
+and Operating Systems, Volume 2, 2025.
+[13] S. Tairin, S. Mahmud, H. Shen, and A. Iyer, “emoe: Task-aware mem-
+ory efficient mixture-of-experts-based (moe) model inference,”arXiv
+preprint arXiv:2503.06823, 2025.
+[14] J. Yao, Q. Anthony, A. Shafi, H. Subramoni, and D. K. D. Panda,
+“Exploiting inter-layer expert affinity for accelerating mixture-of-experts
+model inference,” in2024 IEEE International Parallel and Distributed
+Processing Symposium (IPDPS). IEEE, 2024.
+[15] R. Zhu, Z. Jiang, C. Jin, P. Wu, C. A. Stuardo, D. Wang, X. Zhang,
+H. Zhou, H. Wei, Y . Chenget al., “Megascale-infer: Serving mixture-
+of-experts at scale with disaggregated expert parallelism,”arXiv preprint
+arXiv:2504.02263, 2025.
+[16] A. Skliar, T. van Rozendaal, R. Lepert, T. Boinovski, M. Van Baalen,
+M. Nagel, P. Whatmough, and B. E. Bejnordi, “Mixture of cache-
+conditional experts for efficient mobile device inference,”arXiv preprint
+arXiv:2412.00099, 2024.
+[17] K. T. Chitty-Venkata, S. Madireddy, M. Emani, and V . Vishwanath,
+“Lexi: Layer-adaptive active experts for efficient moe model inference,”
+arXiv preprint arXiv:2509.02753, 2025.
+[18] A. Liu, B. Feng, B. Xue, B. Wang, B. Wu, C. Lu, C. Zhao, C. Deng,
+C. Zhang, C. Ruanet al., “Deepseek-v3 technical report,”arXiv preprint
+arXiv:2412.19437, 2024.
+[19] Meta. (2025) Llama4 technical report. [Online]. Available: https:
+//ai.meta.com/blog/llama-4-multimodal-intelligence/
+[20] A. Yang, A. Li, B. Yang, B. Zhang, B. Hui, B. Zheng, B. Yu, C. Gao,
+C. Huang, C. Lvet al., “Qwen3 technical report,”arXiv preprint
+arXiv:2505.09388, 2025.
+[21] K. Team, Y . Bai, Y . Bao, G. Chen, J. Chen, N. Chen, R. Chen, Y . Chen,
+Y . Chen, Y . Chenet al., “Kimi k2: Open agentic intelligence,”arXiv
+preprint arXiv:2507.20534, 2025.
+[22] A. Smith, G. H. Loh, J. Wuu, S. Naffziger, T. Huang, H. McIntyre,
+R. Mangaser, W. Jung, and R. Swaminathan, “Amd instinct™ mi300x
+accelerator: Packaging and architecture co-optimization,” in2024 IEEE
+Symposium on VLSI Technology and Circuits (VLSI Technology and
+Circuits). IEEE, 2024.
+[23] P. Dalmia, R. S. Kumar, and M. D. Sinclair, “Cpelide: Efficient multi-
+chiplet gpu implicit synchronization,” in2024 57th IEEE/ACM Interna-
+tional Symposium on Microarchitecture (MICRO), 2024.
+[24] NVIDIA, “Nvidia blackwell architecture overview,” https://resources.
+nvidia.com/en-us-blackwell-architecture, 2025.
+[25] C. He, Y . Huang, P. Mu, Z. Miao, J. Xue, L. Ma, F. Yang, and L. Mai,
+“Waferllm: Large language model inference at wafer scale,” in19th
+USENIX Symposium on Operating Systems Design and Implementation
+(OSDI 25). USENIX Association, 2025.
+[26] Z. Xu, D. Kong, J. Liu, J. Li, J. Hou, X. Dai, C. Li, S. Wei, Y . Hu, and
+S. Yin, “Wsc-llm: Efficient llm service and architecture co-exploration
+for wafer-scale chips,” inProceedings of the 52nd Annual International
+Symposium on Computer Architecture, 2025, pp. 1–17.
+[27] S. T. from LMSYS Org. (2025) Together with sglang: Best
+practices for serving deepseek-r1 on h20-96g. [Online]. Available:
+https://lmsys.org/blog/2025-09-26-sglang-ant-group/
+[28] ——. (2025) Deploying deepseek with pd disaggregation and large-
+scale expert parallelism on 96 h100 gpus. [Online]. Available:
+https://lmsys.org/blog/2025-05-05-large-scale-ep/
+[29] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez,
+Ł. Kaiser, and I. Polosukhin, “Attention is all you need,”Advances in
+neural information processing systems, 2017.
+[30] S. Masoudnia and R. Ebrahimpour, “Mixture of experts: a literature
+survey,”Artificial Intelligence Review, pp. 275–293, 2014.
+[31] S. Cao, S. Liu, T. Griggs, P. Schafhalter, X. Liu, Y . Sheng, J. E. Gon-
+zalez, M. Zaharia, and I. Stoica, “Moe-lightning: High-throughput moe
+inference on memory-constrained gpus,” inProceedings of the 30th ACM
+International Conference on Architectural Support for Programming
+Languages and Operating Systems, 2025.
+[32] J. Suo, X. Liao, L. Xiao, L. Ruan, J. Wang, X. Su, and Z. Huo, “Coserve:
+Efficient collaboration-of-experts (coe) model inference with limited
+memory,” inProceedings of the 30th ACM International Conference
+on Architectural Support for Programming Languages and Operating
+Systems, 2025.
+[33] S. Yun, K. Kyung, J. Cho, J. Choi, J. Kim, B. Kim, S. Lee, K. Sohn,
+and J. H. Ahn, “Duplex: A device for large language models with
+mixture of experts, grouped query attention, and continuous batching,”
+in2024 57th IEEE/ACM International Symposium on Microarchitecture
+(MICRO), 2024.
+[34] P. Schober, C. Boer, and L. A. Schwarte, “Correlation coefficients:
+appropriate use and interpretation,”Anesthesia & analgesia, 2018.
+[35] D. Hendrycks, C. Burns, S. Basart, A. Zou, M. Mazeika, D. Song, and
+J. Steinhardt, “Measuring massive multitask language understanding,”
+arXiv preprint arXiv:2009.03300, 2020.
+[36] Y . Wang, X. Ma, G. Zhang, Y . Ni, A. Chandra, S. Guo, W. Ren,
+A. Arulraj, X. He, Z. Jianget al., “Mmlu-pro: A more robust and
+challenging multi-task language understanding benchmark,”Advances
+in Neural Information Processing Systems, 2024.
+[37] M. Lundstrom, “Moore’s law forever?”Science, 2003.
+[38] Y .-C. Hu, Y .-M. Liang, H.-P. Hu, C.-Y . Tan, C.-T. Shen, C.-H. Lee, and
+S. Hou, “Cowos architecture evolution for next generation hpc on 2.5
+d system in package,” in2023 IEEE 73rd Electronic Components and
+Technology Conference (ECTC), 2023.
+[39] J. Shin, H. Eslampour, S. Jeong, W. Kim, S. Yong, S.-O. Ahn, E. Park,
+and S. Song, “Signal integrity of die-to-die interface with advanced
+packages for co-packaged optics,” in2024 IEEE 33rd Conference on
+Electrical Performance of Electronic Packaging and Systems (EPEPS),
+2024.
+[40] R. Mahajan, R. Sankman, N. Patel, D.-W. Kim, K. Aygun, Z. Qian,
+Y . Mekonnen, I. Salama, S. Sharan, D. Iyengaret al., “Embedded
+multi-die interconnect bridge (emib)–a high density, high bandwidth
+packaging interconnect,” in2016 IEEE 66th Electronic Components and
+Technology Conference (ECTC), 2016.
+[41] NVIDIA, “Nvidia gtc 2025,” https://www.nvidia.com/gtc/, 2025.
+[42] S. Hou, W. C. Chen, C. Hu, C. Chiu, K. Ting, T. Lin, W. Wei, W. Chiou,
+V . J. Lin, V . C. Changet al., “Wafer-level integration of an advanced
+logic-memory system through the second-generation cowos technology,”
+IEEE Transactions on Electron Devices, 2017.
+[43] P.-C. Shih, A.-J. Su, K.-H. Tam, T.-C. Huang, K. Chuang, and J. Yeh,
+“Sow-x: A novel system-on-wafer technology for next generation ai
+server application,” in2025 IEEE 75th Electronic Components and
+Technology Conference (ECTC). IEEE, 2025.
+[44] S. Hou, H. Hsia, C. Tsai, K. Ting, T. Yu, Y . Lee, F. Chen, W. Chiou,
+C. Wang, C. Wuet al., “Integrated deep trench capacitor in si inter-
+poser for cowos heterogeneous integration,” in2019 IEEE International
+Electron Devices Meeting (IEDM). IEEE, 2019, pp. 19–5.
+[45] X. Tang, J. Hou, D. Jiang, T. Wei, J. Liu, J. Deng, H. Wang, Q. Yang,
+H. Shang, C. Liet al., “Moentwine: Unleashing the potential of wafer-
+scale chips for large-scale expert parallel inference,”arXiv preprint
+arXiv:2510.25258, 2025.
+[46] M. Joshi, B. Joo, Z. Susskind, A. Hendriksen, and K. Clark. (2026)
+Accelerating data processing with NVIDIA multi-instance GPU and
+NUMA node localization. NVIDIA Technical Blog. [Online]. Avail-
+able: https://developer.nvidia.com/blog/accelerating-data-processing-
+with-nvidia-multi-instance-gpu-and-numa-node-localization/
+[47] D. Xu, Y . Li, Y . Sun, J. Ren, and Y . Sun, “Hdpat: Hierarchical
+distributed page address translation for wafer-scale gpus,” in2026 IEEE
+International Symposium on High Performance Computer Architecture
+(HPCA), 2026.
+[48] Z. Huang, S. Fan, C. Tang, X. Lin, S. Deng, and Y . Liu, “Hecaton:
+Training large language models with scalable chiplet systems,”arXiv
+preprint arXiv:2407.05784, 2024.
+[49] M. LeBeane, K. Hamidouche, B. Benton, M. Breternitz, S. K. Reinhardt,
+and L. K. John, “Comp-net: Command processor networking for efficient
+intra-kernel communications on gpus,” inProceedings of the 27th
+International Conference on Parallel Architectures and Compilation
+Techniques, 2018.
+[50] A. Gutierrez, B. M. Beckmann, A. Dutu, J. Gross, M. LeBeane, J. Kala-
+matianos, O. Kayiran, M. Poremba, B. Potter, S. Puthooret al., “Lost
+in abstraction: Pitfalls of analyzing gpus at the intermediate language
+level,” in2018 IEEE International Symposium on High Performance
+Computer Architecture (HPCA), 2018.
+[51] L. Zheng, L. Yin, Z. Xie, C. L. Sun, J. Huang, C. H. Yu, S. Cao,
+C. Kozyrakis, I. Stoica, J. E. Gonzalezet al., “Sglang: Efficient execution
+of structured language model programs,”Advances in neural information
+processing systems, 2024.
+[52] N. Binkert, B. Beckmann, G. Black, S. K. Reinhardt, A. Saidi, A. Basu,
+J. Hestness, D. R. Hower, T. Krishna, S. Sardashtiet al., “The gem5
+simulator,”ACM SIGARCH computer architecture news, 2011.
+[53] A. Bakhoda, G. L. Yuan, W. W. Fung, H. Wong, and T. M. Aamodt,
+“Analyzing cuda workloads using a detailed gpu simulator,” in2009
+IEEE international symposium on performance analysis of systems and
+software, 2009.
+[54] Y . Sun, T. Baruah, S. A. Mojumder, S. Dong, X. Gong, S. Treadway,
+Y . Bao, S. Hance, C. McCardwell, V . Zhaoet al., “Mgpusim: Enabling
+multi-gpu performance modeling and optimization,” inProceedings of
+the 46th International Symposium on Computer Architecture, 2019.
+[55] W. Won, T. Heo, S. Rashidi, S. Sridharan, S. Srinivasan, and T. Kr-
+ishna, “Astra-sim2. 0: Modeling hierarchical networks and disaggregated
+systems for large-model training at scale,” in2023 IEEE International
+Symposium on Performance Analysis of Systems and Software (ISPASS),
+2023.
+[56] Y . Zhong, S. Liu, J. Chen, J. Hu, Y . Zhu, X. Liu, X. Jin, and
+H. Zhang, “{DistServe}: Disaggregating prefill and decoding for
+goodput-optimized large language model serving,” in18th USENIX
+Symposium on Operating Systems Design and Implementation (OSDI
+24), 2024.
+[57] B. Wu, S. Liu, Y . Zhong, P. Sun, X. Liu, and X. Jin, “Loongserve: Effi-
+ciently serving long-context large language models with elastic sequence
+parallelism,” inProceedings of the ACM SIGOPS 30th Symposium on
+Operating Systems Principles, 2024, pp. 640–654.
+[58] R. Qin, Z. Li, W. He, J. Cui, F. Ren, M. Zhang, Y . Wu, W. Zheng,
+and X. Xu, “Mooncake: Trading more storage for less computation—a
+{KVCache-centric}architecture for serving{LLM}chatbot,” in23rd
+USENIX Conference on File and Storage Technologies (FAST 25), 2025.
+[59] E. Talpes, D. D. Sarma, D. Williams, S. Arora, T. Kunjan, B. Floering,
+A. Jalote, C. Hsiong, C. Poorna, V . Samantet al., “The microarchitecture
+of dojo, tesla’s exa-scale computer,”IEEE Micro, 2023.
+[60] E. Talpes, D. Williams, and D. D. Sarma, “Dojo: The microarchitecture
+of tesla’s exa-scale computer,” in2022 IEEE Hot Chips 34 Symposium
+(HCS), 2022.
+[61] TSMC. (2025) Tsmc’s next generation of system-on-
+wafer package will make today’s cpus and gpus look
+pathetically feeble in comparison. [Online]. Available:
+https://www.pcgamer.com/hardware/processors/tsmcs-next-generation-
+of-system-on-wafer-packaging-will-make-todays-cpus-and-gpus-look-
+pathetically-feeble-in-comparison/
+[62] Y . He, S. Li, J. Liu, Y . Tan, W. Wang, H. Huang, X. Bu, H. Guo, C. Hu,
+B. Zhenget al., “Chinese simpleqa: A chinese factuality evaluation for
+large language models,”arXiv preprint arXiv:2411.07140, 2024.
+[63] N. Jain, K. Han, A. Gu, W.-D. Li, F. Yan, T. Zhang, S. Wang,
+A. Solar-Lezama, K. Sen, and I. Stoica, “Livecodebench: Holistic and
+contamination free evaluation of large language models for code,”arXiv
+preprint arXiv:2403.07974, 2024.
+[64] C. Wolf, J. Glaser, and J. Kepler, “Yosys-a free verilog synthesis suite,”
+inProceedings of the 21st Austrian Workshop on Microelectronics
+(Austrochip), vol. 97, 2013, pp. 1–6.
+[65] R. Balasubramonian, A. B. Kahng, N. Muralimanohar, A. Shafiee,
+and V . Srinivas, “Cacti 7: New tools for interconnect exploration in
+innovative off-chip memories,”ACM Transactions on Architecture and
+Code Optimization (TACO), vol. 14, no. 2, pp. 1–25, 2017.
+[66] G. Shan, Y . Zheng, C. Xing, D. Chen, G. Li, and Y . Yang, “Architecture
+of computing system based on chiplet,”Micromachines, vol. 13, no. 2,
+p. 205, 2022.
+[67] K. Wang, J. Chen, Y . Xu, Z. Yu, W. He, D. Tang, N. Sun, and
+Y . Bao, “Xiangshan: An open-source project for high-performance risc-v
+processors meeting industrial-grade standards,”IEEE Micro, 2025.
+[68] deepseek-ai, “Eplb: Expert parallelism load balancer,” 2026, gitHub
+repository (Python implementation:eplb.py). [Online]. Available:
+https://github.com/deepseek-ai/EPLB
+[69] vLLM Team. (2025) Expert parallel deployment — configuration.
+VLLM Documentation, version 0.12.0. [Online]. Available: https://docs.
+vllm.ai/en/v0.12.0/serving/expert parallel deployment/#configuration 1
+[70] C. Chen, M. Li, Z. Wu, D. Yu, and C. Yang, “Ta-moe: Topology-aware
+large scale mixture-of-expert training,”Advances in Neural Information
+Processing Systems, vol. 35, pp. 22 173–22 186, 2022.
+[71] W. Li, J. Peng, Z. Jing, T. Zhang, Z. Long, X. Qiao, X. Chen,
+D. Yang, K. Duan, and J. Yang, “Dwdp: Distributed weight data
+parallelism for high-performance llm inference on nvl72,”arXiv preprint
+arXiv:2604.01621, 2026.
+[72] Z. Yu, S. Liang, T. Ma, Y . Cai, Z. Nan, D. Huang, X. Song, Y . Hao,
+J. Zhang, T. Zhiet al., “Cambricon-llm: A chiplet-based hybrid archi-
+tecture for on-device inference of 70b llm,” in2024 57th IEEE/ACM
+International Symposium on Microarchitecture (MICRO), 2024.
+[73] Y . Sheng, L. Zheng, B. Yuan, Z. Li, M. Ryabinin, B. Chen, P. Liang,
+C. R ´e, I. Stoica, and C. Zhang, “Flexgen: High-throughput generative
+inference of large language models with a single gpu,” inInternational
+Conference on Machine Learning, 2023.
+[74] Y . Pan, Z. Xia, P.-K. Hsu, L. Hu, H. Kim, J. Sharda, M. Zhou, N. S. Kim,
+S. Yu, T. Rosinget al., “Stratum: System-hardware co-design with tiered
+monolithic 3d-stackable dram for efficient moe serving,” inProceedings
+of the 58th IEEE/ACM International Symposium on Microarchitecture,
+2025, pp. 1–17.
+[75] Z. Yu, H. Ye, C. Zhou, O. R. Venkatachalam, Z. Pan, Z. Hu, J. Kim,
+W. W. Ro, P.-A. Tsai, S. Pei, Y . Kang, and Y . Ding, “Amma: A multi-
+chiplet memory-centric architecture for low-latency 1m context attention
+serving,”arXiv preprint arXiv:2604.26103, 2026.
+[76] N. Muennighoff, L. Soldaini, D. Groeneveld, K. Lo, J. Morrison, S. Min,
+W. Shi, P. Walsh, O. Tafjord, N. Lambertet al., “Olmoe: Open mixture-
+of-experts language models,”arXiv preprint arXiv:2409.02060, 2024.
+[77] A. Q. Jiang, A. Sablayrolles, A. Roux, A. Mensch, B. Savary, C. Bam-
+ford, D. S. Chaplot, D. d. l. Casas, E. B. Hanna, F. Bressandet al.,
+“Mixtral of experts,”arXiv preprint arXiv:2401.04088, 2024.
+[78] D. Dai, C. Deng, C. Zhao, R. Xu, H. Gao, D. Chen, J. Li, W. Zeng,
+X. Yu, Y . Wuet al., “Deepseekmoe: Towards ultimate expert spe-
+cialization in mixture-of-experts language models,”arXiv preprint
+arXiv:2401.06066, 2024.
+[79] X. Sun, Y . Chen, Y . Huang, R. Xie, J. Zhu, K. Zhang, S. Li,
+Z. Yang, J. Han, X. Shuet al., “Hunyuan-large: An open-source moe
+model with 52 billion activated parameters by tencent,”arXiv preprint
+arXiv:2411.02265, 2024.
+[80] R. Hwang, J. Wei, S. Cao, C. Hwang, X. Tang, T. Cao, and M. Yang,
+“Pre-gated moe: An algorithm-system co-design for fast and scalable
+mixture-of-expert inference,” in2024 ACM/IEEE 51st Annual Interna-
+tional Symposium on Computer Architecture (ISCA). IEEE, 2024, pp.
+1018–1031.
+[81] J. Li, Y . Jiang, Y . Zhu, C. Wang, and H. Xu, “Accelerating distributed
+moe training and inference with lina,” in2023 USENIX Annual Technical
+Conference (USENIX ATC 23), 2023, pp. 945–959.
+[82] V . Gupta, K. Sinha, A. Gavrilovska, and A. P. Iyer, “Lynx: Enabling
+efficient moe inference through dynamic batch-aware expert selection,”
+arXiv preprint arXiv:2411.08982, 2024.
+[83] K. Kamahori, T. Tang, Y . Gu, K. Zhu, and B. Kasikci, “Fiddler:
+CPU-GPU orchestration for fast inference of mixture-of-experts
+models,” inThe Thirteenth International Conference on Learning
+Representations, 2025. [Online]. Available: https://openreview.net/
+forum?id=N5fVv6PZGz
+[84] A. Eliseev and D. Mazur, “Fast inference of mixture-of-experts language
+models with offloading,”arXiv preprint arXiv:2312.17238, 2023.
+[85] Z. Du, S. Li, Y . Wu, X. Jiang, J. Sun, Q. Zheng, Y . Wu, A. Li, H. Li,
+and Y . Chen, “Sida: Sparsity-inspired data-aware serving for efficient
+and scalable large mixture-of-experts models,”Proceedings of Machine
+Learning and Systems, vol. 6, pp. 224–238, 2024.
+[86] J. Li, S. Tripathi, L. Rastogi, Y . Lei, R. Pan, and Y . Xia, “Optimizing
+mixture-of-experts inference time combining model deployment and
+communication scheduling,”arXiv preprint arXiv:2410.17043, 2024.
+[87] C. Hwang, W. Cui, Y . Xiong, Z. Yang, Z. Liu, H. Hu, Z. Wang, R. Salas,
+J. Jose, P. Ramet al., “Tutel: Adaptive mixture-of-experts at scale,”
+Proceedings of Machine Learning and Systems, vol. 5, pp. 269–287,
+2023.
+[88] M. Zhai, J. He, Z. Ma, Z. Zong, R. Zhang, and J. Zhai, “{SmartMoE}:
+Efficiently training{Sparsely-Activated}models through combining
+offline and online parallelization,” in2023 USENIX Annual Technical
+Conference (USENIX ATC 23), 2023, pp. 961–975.
+[89] S. Rashidi, W. Won, S. Srinivasan, P. Gupta, and T. Krishna, “Fred: A
+wafer-scale fabric for 3d parallel dnn training,” inProceedings of the
+52nd Annual International Symposium on Computer Architecture, 2025,
+pp. 34–48.
+[90] Q. Yang, T. Wei, S. Guan, C. Li, H. Shang, J. Deng, H. Wang, C. Li,
+L. Wang, Y . Zhanget al., “Pd constraint-aware physical/logical topology
+co-design for network on wafer,” inProceedings of the 52nd Annual
+International Symposium on Computer Architecture, 2025, pp. 49–64.
+[91] X. Yu, D. Jiang, J. Deng, J. Liu, C. Li, S. Yin, and Y . Hu, “Cramming a
+data center into one cabinet, a co-exploration of computing and hardware
+architecture of waferscale chip,” inProceedings of the 52nd Annual
+International Symposium on Computer Architecture, 2025, pp. 631–645.
+[92] Z. Li and D. Wentzlaff, “Lucie: A universal chiplet-interposer design
+framework for plug-and-play integration,” in2024 57th IEEE/ACM
+International Symposium on Microarchitecture (MICRO). IEEE, 2024,
+pp. 423–436.
+[93] S. Chen, S. Pal, and R. Kumar, “Waferscale network switches,” in
+2024 ACM/IEEE 51st Annual International Symposium on Computer
+Architecture (ISCA). IEEE, 2024, pp. 215–229.
+[94] Y . Feng, D. Xiang, and K. Ma, “Heterogeneous die-to-die interfaces:
+Enabling more flexible chiplet interconnection systems,” inProceedings
+of the 56th Annual IEEE/ACM International Symposium on Microarchi-
+tecture, 2023, pp. 930–943.
+[95] ——, “A scalable methodology for designing efficient interconnection
+network of chiplets,” in2023 IEEE International Symposium on High-
+Performance Computer Architecture (HPCA). IEEE, 2023, pp. 1059–
+1071.
+[96] Z. Tan, H. Cai, R. Dong, and K. Ma, “Nn-baton: Dnn workload orches-
+tration and chiplet granularity exploration for multichip accelerators,”
+in2021 ACM/IEEE 48th Annual International Symposium on Computer
+Architecture (ISCA). IEEE, 2021, pp. 1013–1026.
+[97] Y . S. Shao, J. Clemons, R. Venkatesan, B. Zimmer, M. Fojtik, N. Jiang,
+B. Keller, A. Klinefelter, N. Pinckney, P. Rainaet al., “Simba: Scaling
+deep-learning inference with multi-chip-module-based architecture,” in
+Proceedings of the 52nd annual IEEE/ACM international symposium on
+microarchitecture, 2019, pp. 14–27.
+[98] M. Odema, L. Chen, H. Kwon, and M. A. Al Faruque, “Scar: Schedul-
+ing multi-model ai workloads on heterogeneous multi-chiplet module
+accelerators,” in2024 57th IEEE/ACM International Symposium on
+Microarchitecture (MICRO). IEEE, 2024, pp. 565–579.

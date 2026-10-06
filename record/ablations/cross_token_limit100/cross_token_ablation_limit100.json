@@ -1,0 +1,88 @@
+{
+  "rows": [
+    {
+      "model": "qwen3",
+      "native_k": 8,
+      "variant": "full",
+      "recall": 0.5558203528082158,
+      "delta_vs_full": 0.0
+    },
+    {
+      "model": "qwen3",
+      "native_k": 8,
+      "variant": "no_history",
+      "recall": 0.5410274679376935,
+      "delta_vs_full": -0.014792884870522327
+    },
+    {
+      "model": "qwen3",
+      "native_k": 8,
+      "variant": "no_two_hop",
+      "recall": 0.5463263475996265,
+      "delta_vs_full": -0.00949400520858934
+    },
+    {
+      "model": "qwen3",
+      "native_k": 8,
+      "variant": "no_prefill",
+      "recall": 0.5512437963736426,
+      "delta_vs_full": -0.00457655643457322
+    },
+    {
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "variant": "full",
+      "recall": 0.28760893136821813,
+      "delta_vs_full": 0.0
+    },
+    {
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "variant": "no_history",
+      "recall": 0.26505260832898275,
+      "delta_vs_full": -0.022556323039235382
+    },
+    {
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "variant": "no_two_hop",
+      "recall": 0.29405746757158346,
+      "delta_vs_full": 0.006448536203365329
+    },
+    {
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "variant": "no_prefill",
+      "recall": 0.29455443556483674,
+      "delta_vs_full": 0.0069455041966186015
+    },
+    {
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "variant": "full",
+      "recall": 0.3261176215277778,
+      "delta_vs_full": 0.0
+    },
+    {
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "variant": "no_history",
+      "recall": 0.3204752604166667,
+      "delta_vs_full": -0.005642361111111105
+    },
+    {
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "variant": "no_two_hop",
+      "recall": 0.3271484375,
+      "delta_vs_full": 0.0010308159722222099
+    },
+    {
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "variant": "no_prefill",
+      "recall": 0.3257921006944444,
+      "delta_vs_full": -0.00032552083333337034
+    }
+  ]
+}

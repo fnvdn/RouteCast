@@ -1,0 +1,139 @@
+{
+  "version": 3,
+  "task": "cross_token",
+  "seed": 2026,
+  "history": 16,
+  "disabled_branches": [
+    "popularity",
+    "one_step",
+    "two_hop",
+    "prefill",
+    "multiscale"
+  ],
+  "best_epoch": 2,
+  "group_weights": {
+    "qwen3": 0.26518054547833625,
+    "deepseek_r1": 0.40189798760282003,
+    "llama4_maverick": 0.33292146691884367
+  },
+  "val": {
+    "qwen3": {
+      "examples": 1733736,
+      "native_topk": 8,
+      "metrics": {
+        "8": {
+          "recall": 0.5244460517633596,
+          "precision": 0.5244460517633596
+        },
+        "12": {
+          "recall": 0.6345740499130202,
+          "precision": 0.42304936660868014
+        },
+        "16": {
+          "recall": 0.7021224684727086,
+          "precision": 0.3510612342363543
+        }
+      }
+    },
+    "deepseek_r1": {
+      "examples": 1022736,
+      "native_topk": 8,
+      "metrics": {
+        "8": {
+          "recall": 0.270388326019618,
+          "precision": 0.270388326019618
+        },
+        "12": {
+          "recall": 0.3290117146555905,
+          "precision": 0.219341143103727
+        },
+        "16": {
+          "recall": 0.3684093451291438,
+          "precision": 0.1842046725645719
+        }
+      }
+    },
+    "llama4_maverick": {
+      "examples": 445440,
+      "native_topk": 1,
+      "metrics": {
+        "1": {
+          "recall": 0.2926522090517241,
+          "precision": 0.2926522090517241
+        },
+        "2": {
+          "recall": 0.4007116558908046,
+          "precision": 0.2003558279454023
+        },
+        "4": {
+          "recall": 0.5083759877873564,
+          "precision": 0.1270939969468391
+        },
+        "8": {
+          "recall": 0.622027658045977,
+          "precision": 0.07775345725574713
+        }
+      }
+    }
+  },
+  "test": {
+    "qwen3": {
+      "examples": 1885170,
+      "native_topk": 8,
+      "metrics": {
+        "8": {
+          "recall": 0.5268467167417262,
+          "precision": 0.5268467167417262
+        },
+        "12": {
+          "recall": 0.6370243797641592,
+          "precision": 0.4246829198427728
+        },
+        "16": {
+          "recall": 0.7040231119739865,
+          "precision": 0.35201155598699324
+        }
+      }
+    },
+    "deepseek_r1": {
+      "examples": 1123638,
+      "native_topk": 8,
+      "metrics": {
+        "8": {
+          "recall": 0.27050070841320784,
+          "precision": 0.27050070841320784
+        },
+        "12": {
+          "recall": 0.3290880826387146,
+          "precision": 0.2193920550924764
+        },
+        "16": {
+          "recall": 0.3685855675938336,
+          "precision": 0.1842927837969168
+        }
+      }
+    },
+    "llama4_maverick": {
+      "examples": 450672,
+      "native_topk": 1,
+      "metrics": {
+        "1": {
+          "recall": 0.2939965207512337,
+          "precision": 0.2939965207512337
+        },
+        "2": {
+          "recall": 0.40448485816735896,
+          "precision": 0.20224242908367948
+        },
+        "4": {
+          "recall": 0.5116403947882273,
+          "precision": 0.12791009869705683
+        },
+        "8": {
+          "recall": 0.6220732594880534,
+          "precision": 0.07775915743600667
+        }
+      }
+    }
+  }
+}

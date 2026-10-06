@@ -1,0 +1,155 @@
+{
+  "protocol": "request-disjoint limit=1000; native-K; seed=2026",
+  "rows": [
+    {
+      "model": "qwen3",
+      "native_k": 8,
+      "method": "Paper Heatmap",
+      "recall": 0.4351872775399566,
+      "precision": 0.4351872775399566,
+      "mrr": 0.7969153209807835,
+      "ndcg": 0.48591952254333215,
+      "delta_recall_vs_routecast": -0.1206493976670539
+    },
+    {
+      "model": "qwen3",
+      "native_k": 8,
+      "method": "Request-aware Heatmap",
+      "recall": 0.433019833755046,
+      "precision": 0.433019833755046,
+      "mrr": 0.7955817579692539,
+      "ndcg": 0.4834299877702599,
+      "delta_recall_vs_routecast": -0.12281684145196453
+    },
+    {
+      "model": "qwen3",
+      "native_k": 8,
+      "method": "GRU-only",
+      "recall": 0.526821917917217,
+      "precision": 0.526821917917217,
+      "mrr": 0.8893183530530079,
+      "ndcg": 0.5903000372510671,
+      "delta_recall_vs_routecast": -0.029014757289793525
+    },
+    {
+      "model": "qwen3",
+      "native_k": 8,
+      "method": "TCN-only",
+      "recall": 0.5276899430820563,
+      "precision": 0.5276899430820563,
+      "mrr": 0.8902402437821462,
+      "ndcg": 0.5936362824736222,
+      "delta_recall_vs_routecast": -0.02814673212495422
+    },
+    {
+      "model": "qwen3",
+      "native_k": 8,
+      "method": "RouteCast V3",
+      "recall": 0.5558366752070105,
+      "precision": 0.5558366752070105,
+      "mrr": 0.9012987993512187,
+      "ndcg": 0.6208074817513699,
+      "delta_recall_vs_routecast": 0.0
+    },
+    {
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "method": "Paper Heatmap",
+      "recall": 0.21313336679606779,
+      "precision": 0.21313336679606779,
+      "mrr": 0.5086720000382997,
+      "ndcg": 0.24134187204913485,
+      "delta_recall_vs_routecast": -0.10409424565562928
+    },
+    {
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "method": "Request-aware Heatmap",
+      "recall": 0.2121110179613007,
+      "precision": 0.2121110179613007,
+      "mrr": 0.5076279426867447,
+      "ndcg": 0.24020639250055886,
+      "delta_recall_vs_routecast": -0.10511659449039637
+    },
+    {
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "method": "GRU-only",
+      "recall": 0.2705042682785737,
+      "precision": 0.2705042682785737,
+      "mrr": 0.6715485457406938,
+      "ndcg": 0.32425993946863607,
+      "delta_recall_vs_routecast": -0.04672334417312335
+    },
+    {
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "method": "TCN-only",
+      "recall": 0.27174944243608706,
+      "precision": 0.27174944243608706,
+      "mrr": 0.6706745441833337,
+      "ndcg": 0.32653909582323304,
+      "delta_recall_vs_routecast": -0.04547817001561
+    },
+    {
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "method": "RouteCast V3",
+      "recall": 0.31722761245169706,
+      "precision": 0.31722761245169706,
+      "mrr": 0.7130871060816635,
+      "ndcg": 0.37433281794234885,
+      "delta_recall_vs_routecast": 0.0
+    },
+    {
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "method": "Paper Heatmap",
+      "recall": 0.32976089040366385,
+      "precision": 0.32976089040366385,
+      "mrr": 0.45932556383985973,
+      "ndcg": 0.32976089040366385,
+      "delta_recall_vs_routecast": -0.030481148152092907
+    },
+    {
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "method": "Request-aware Heatmap",
+      "recall": 0.3310589519650655,
+      "precision": 0.3310589519650655,
+      "mrr": 0.4652759456472004,
+      "ndcg": 0.3310589519650655,
+      "delta_recall_vs_routecast": -0.029183086590691243
+    },
+    {
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "method": "GRU-only",
+      "recall": 0.2937546597081691,
+      "precision": 0.2937546597081691,
+      "mrr": 0.4470477660471636,
+      "ndcg": 0.2937546597081691,
+      "delta_recall_vs_routecast": -0.06648737884758765
+    },
+    {
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "method": "TCN-only",
+      "recall": 0.30237068200376327,
+      "precision": 0.30237068200376327,
+      "mrr": 0.44509470919456945,
+      "ndcg": 0.30237068200376327,
+      "delta_recall_vs_routecast": -0.05787135655199349
+    },
+    {
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "method": "RouteCast V3",
+      "recall": 0.36024203855575676,
+      "precision": 0.36024203855575676,
+      "mrr": 0.498825360822378,
+      "ndcg": 0.36024203855575676,
+      "delta_recall_vs_routecast": 0.0
+    }
+  ]
+}

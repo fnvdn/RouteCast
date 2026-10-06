@@ -1,0 +1,423 @@
+{
+  "method": "MoE-Infinity EAMC trace reproduction",
+  "neighbors_candidates": [
+    1,
+    3,
+    5,
+    10
+  ],
+  "models": {
+    "qwen3": {
+      "native_topk": 8,
+      "eamc_size": 69,
+      "best_neighbors": 5,
+      "val_native_recall": 0.46150444053951367,
+      "prediction": {
+        "8": {
+          "recall": 0.4477912633285834,
+          "precision": 0.4477912633285834
+        },
+        "12": {
+          "recall": 0.5569959707139698,
+          "precision": 0.3713306471426466
+        },
+        "16": {
+          "recall": 0.63734091690826,
+          "precision": 0.31867045845413
+        }
+      },
+      "system": {
+        "1": {
+          "LRU": {
+            "hit_rate": 0.3750970468281657,
+            "on_demand_loads": 1017392.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 1017392.0,
+            "demand_accesses": 1628080.0,
+            "capacity_entries": 12784.0,
+            "capacity_multiplier": 17.0
+          },
+          "MoE-Infinity EAM": {
+            "hit_rate": 0.4397099651122795,
+            "on_demand_loads": 912197.0,
+            "prefetch_loads": 210427.0,
+            "useful_prefetches": 19098.0,
+            "wasted_prefetches": 191329.0,
+            "prefetch_precision": 0.09075831523521222,
+            "total_transfers": 1122624.0,
+            "demand_accesses": 1628080.0,
+            "capacity_entries": 12784.0,
+            "capacity_multiplier": 17.0
+          },
+          "RouteCast": {
+            "hit_rate": 0.43932054935875386,
+            "on_demand_loads": 912831.0,
+            "prefetch_loads": 818094.0,
+            "useful_prefetches": 191431.0,
+            "wasted_prefetches": 626663.0,
+            "prefetch_precision": 0.23399633782914922,
+            "total_transfers": 1730925.0,
+            "demand_accesses": 1628080.0,
+            "capacity_entries": 12784.0,
+            "capacity_multiplier": 17.0
+          }
+        },
+        "2": {
+          "LRU": {
+            "hit_rate": 0.6574253107955383,
+            "on_demand_loads": 557739.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 557739.0,
+            "demand_accesses": 1628080.0,
+            "capacity_entries": 25568.0,
+            "capacity_multiplier": 34.0
+          },
+          "MoE-Infinity EAM": {
+            "hit_rate": 0.6288394919168592,
+            "on_demand_loads": 604279.0,
+            "prefetch_loads": 10781.0,
+            "useful_prefetches": 10187.0,
+            "wasted_prefetches": 594.0,
+            "prefetch_precision": 0.944903070216121,
+            "total_transfers": 615060.0,
+            "demand_accesses": 1628080.0,
+            "capacity_entries": 25568.0,
+            "capacity_multiplier": 34.0
+          },
+          "RouteCast": {
+            "hit_rate": 0.604359736622279,
+            "on_demand_loads": 644134.0,
+            "prefetch_loads": 569318.0,
+            "useful_prefetches": 260474.0,
+            "wasted_prefetches": 308844.0,
+            "prefetch_precision": 0.45751934771076974,
+            "total_transfers": 1213452.0,
+            "demand_accesses": 1628080.0,
+            "capacity_entries": 25568.0,
+            "capacity_multiplier": 34.0
+          }
+        },
+        "4": {
+          "LRU": {
+            "hit_rate": 0.844794481843644,
+            "on_demand_loads": 252687.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 252687.0,
+            "demand_accesses": 1628080.0,
+            "capacity_entries": 51136.0,
+            "capacity_multiplier": 68.0
+          },
+          "MoE-Infinity EAM": {
+            "hit_rate": 0.8316968453638642,
+            "on_demand_loads": 274011.0,
+            "prefetch_loads": 10050.0,
+            "useful_prefetches": 9499.0,
+            "wasted_prefetches": 551.0,
+            "prefetch_precision": 0.9451741293532339,
+            "total_transfers": 284061.0,
+            "demand_accesses": 1628080.0,
+            "capacity_entries": 51136.0,
+            "capacity_multiplier": 68.0
+          },
+          "RouteCast": {
+            "hit_rate": 0.8015072969387254,
+            "on_demand_loads": 323162.0,
+            "prefetch_loads": 165976.0,
+            "useful_prefetches": 133519.0,
+            "wasted_prefetches": 32457.0,
+            "prefetch_precision": 0.8044476309827927,
+            "total_transfers": 489138.0,
+            "demand_accesses": 1628080.0,
+            "capacity_entries": 51136.0,
+            "capacity_multiplier": 68.0
+          }
+        }
+      }
+    },
+    "deepseek_r1": {
+      "native_topk": 8,
+      "eamc_size": 69,
+      "best_neighbors": 5,
+      "val_native_recall": 0.1761583522661635,
+      "prediction": {
+        "8": {
+          "recall": 0.14588771535279707,
+          "precision": 0.14588771535279707
+        },
+        "12": {
+          "recall": 0.18652062166178066,
+          "precision": 0.12434708110785377
+        },
+        "16": {
+          "recall": 0.22071703947632626,
+          "precision": 0.11035851973816313
+        }
+      },
+      "system": {
+        "1": {
+          "LRU": {
+            "hit_rate": 0.1746857555921449,
+            "on_demand_loads": 822046.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 822046.0,
+            "demand_accesses": 996040.0,
+            "capacity_entries": 7888.0,
+            "capacity_multiplier": 17.0
+          },
+          "MoE-Infinity EAM": {
+            "hit_rate": 0.13741215212240473,
+            "on_demand_loads": 859172.0,
+            "prefetch_loads": 239168.0,
+            "useful_prefetches": 13247.0,
+            "wasted_prefetches": 225921.0,
+            "prefetch_precision": 0.05538784452769601,
+            "total_transfers": 1098340.0,
+            "demand_accesses": 996040.0,
+            "capacity_entries": 7888.0,
+            "capacity_multiplier": 17.0
+          },
+          "RouteCast": {
+            "hit_rate": 0.1995763222360548,
+            "on_demand_loads": 797254.0,
+            "prefetch_loads": 737024.0,
+            "useful_prefetches": 78710.0,
+            "wasted_prefetches": 658314.0,
+            "prefetch_precision": 0.10679435133726989,
+            "total_transfers": 1534278.0,
+            "demand_accesses": 996040.0,
+            "capacity_entries": 7888.0,
+            "capacity_multiplier": 17.0
+          }
+        },
+        "2": {
+          "LRU": {
+            "hit_rate": 0.3309455443556484,
+            "on_demand_loads": 666405.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 666405.0,
+            "demand_accesses": 996040.0,
+            "capacity_entries": 15776.0,
+            "capacity_multiplier": 34.0
+          },
+          "MoE-Infinity EAM": {
+            "hit_rate": 0.2141761375045179,
+            "on_demand_loads": 782712.0,
+            "prefetch_loads": 23229.0,
+            "useful_prefetches": 11895.0,
+            "wasted_prefetches": 11334.0,
+            "prefetch_precision": 0.5120754229626759,
+            "total_transfers": 805941.0,
+            "demand_accesses": 996040.0,
+            "capacity_entries": 15776.0,
+            "capacity_multiplier": 34.0
+          },
+          "RouteCast": {
+            "hit_rate": 0.2730452592265371,
+            "on_demand_loads": 724076.0,
+            "prefetch_loads": 641695.0,
+            "useful_prefetches": 112921.0,
+            "wasted_prefetches": 528774.0,
+            "prefetch_precision": 0.17597300898401888,
+            "total_transfers": 1365771.0,
+            "demand_accesses": 996040.0,
+            "capacity_entries": 15776.0,
+            "capacity_multiplier": 34.0
+          }
+        },
+        "4": {
+          "LRU": {
+            "hit_rate": 0.4501164611862977,
+            "on_demand_loads": 547706.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 547706.0,
+            "demand_accesses": 996040.0,
+            "capacity_entries": 31552.0,
+            "capacity_multiplier": 68.0
+          },
+          "MoE-Infinity EAM": {
+            "hit_rate": 0.3324133568932975,
+            "on_demand_loads": 664943.0,
+            "prefetch_loads": 10881.0,
+            "useful_prefetches": 9691.0,
+            "wasted_prefetches": 1190.0,
+            "prefetch_precision": 0.8906350519253745,
+            "total_transfers": 675824.0,
+            "demand_accesses": 996040.0,
+            "capacity_entries": 31552.0,
+            "capacity_multiplier": 68.0
+          },
+          "RouteCast": {
+            "hit_rate": 0.3745251194731135,
+            "on_demand_loads": 622998.0,
+            "prefetch_loads": 501345.0,
+            "useful_prefetches": 151757.0,
+            "wasted_prefetches": 349588.0,
+            "prefetch_precision": 0.302699737705572,
+            "total_transfers": 1124343.0,
+            "demand_accesses": 996040.0,
+            "capacity_entries": 31552.0,
+            "capacity_multiplier": 68.0
+          }
+        }
+      }
+    },
+    "llama4_maverick": {
+      "native_topk": 1,
+      "eamc_size": 70,
+      "best_neighbors": 10,
+      "val_native_recall": 0.24108434606481483,
+      "prediction": {
+        "1": {
+          "recall": 0.244873046875,
+          "precision": 0.244873046875
+        },
+        "2": {
+          "recall": 0.3539767795138889,
+          "precision": 0.17698838975694445
+        },
+        "4": {
+          "recall": 0.4716525607638889,
+          "precision": 0.11791314019097222
+        },
+        "8": {
+          "recall": 0.5962456597222222,
+          "precision": 0.07453070746527778
+        }
+      },
+      "system": {
+        "1": {
+          "LRU": {
+            "hit_rate": 0.2842068142361111,
+            "on_demand_loads": 26387.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 26387.0,
+            "demand_accesses": 36864.0,
+            "capacity_entries": 288.0,
+            "capacity_multiplier": 12.0
+          },
+          "MoE-Infinity EAM": {
+            "hit_rate": 0.2503255208333333,
+            "on_demand_loads": 27636.0,
+            "prefetch_loads": 11927.0,
+            "useful_prefetches": 333.0,
+            "wasted_prefetches": 11594.0,
+            "prefetch_precision": 0.02791984572817976,
+            "total_transfers": 39563.0,
+            "demand_accesses": 36864.0,
+            "capacity_entries": 288.0,
+            "capacity_multiplier": 12.0
+          },
+          "RouteCast": {
+            "hit_rate": 0.2155219184027778,
+            "on_demand_loads": 28919.0,
+            "prefetch_loads": 27404.0,
+            "useful_prefetches": 2911.0,
+            "wasted_prefetches": 24493.0,
+            "prefetch_precision": 0.1062253685593344,
+            "total_transfers": 56323.0,
+            "demand_accesses": 36864.0,
+            "capacity_entries": 288.0,
+            "capacity_multiplier": 12.0
+          }
+        },
+        "2": {
+          "LRU": {
+            "hit_rate": 0.3595648871527778,
+            "on_demand_loads": 23609.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 23609.0,
+            "demand_accesses": 36864.0,
+            "capacity_entries": 576.0,
+            "capacity_multiplier": 24.0
+          },
+          "MoE-Infinity EAM": {
+            "hit_rate": 0.3643391927083333,
+            "on_demand_loads": 23433.0,
+            "prefetch_loads": 1247.0,
+            "useful_prefetches": 215.0,
+            "wasted_prefetches": 1032.0,
+            "prefetch_precision": 0.1724137931034483,
+            "total_transfers": 24680.0,
+            "demand_accesses": 36864.0,
+            "capacity_entries": 576.0,
+            "capacity_multiplier": 24.0
+          },
+          "RouteCast": {
+            "hit_rate": 0.3088107638888889,
+            "on_demand_loads": 25480.0,
+            "prefetch_loads": 23508.0,
+            "useful_prefetches": 4126.0,
+            "wasted_prefetches": 19382.0,
+            "prefetch_precision": 0.1755147183937383,
+            "total_transfers": 48988.0,
+            "demand_accesses": 36864.0,
+            "capacity_entries": 576.0,
+            "capacity_multiplier": 24.0
+          }
+        },
+        "4": {
+          "LRU": {
+            "hit_rate": 0.4807400173611111,
+            "on_demand_loads": 19142.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 19142.0,
+            "demand_accesses": 36864.0,
+            "capacity_entries": 1152.0,
+            "capacity_multiplier": 48.0
+          },
+          "MoE-Infinity EAM": {
+            "hit_rate": 0.49755859375,
+            "on_demand_loads": 18522.0,
+            "prefetch_loads": 255.0,
+            "useful_prefetches": 217.0,
+            "wasted_prefetches": 38.0,
+            "prefetch_precision": 0.8509803921568627,
+            "total_transfers": 18777.0,
+            "demand_accesses": 36864.0,
+            "capacity_entries": 1152.0,
+            "capacity_multiplier": 48.0
+          },
+          "RouteCast": {
+            "hit_rate": 0.4200303819444444,
+            "on_demand_loads": 21380.0,
+            "prefetch_loads": 18596.0,
+            "useful_prefetches": 5316.0,
+            "wasted_prefetches": 13280.0,
+            "prefetch_precision": 0.2858679285867929,
+            "total_transfers": 39976.0,
+            "demand_accesses": 36864.0,
+            "capacity_entries": 1152.0,
+            "capacity_multiplier": 48.0
+          }
+        }
+      }
+    }
+  }
+}

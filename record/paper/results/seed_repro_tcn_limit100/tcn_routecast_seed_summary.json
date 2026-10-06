@@ -1,0 +1,112 @@
+{
+  "protocol": "limit=100 development stability screening; matched seeds 2024/2025/2026",
+  "runs": [
+    {
+      "seed": 2024,
+      "model": "qwen3",
+      "native_k": 8,
+      "routecast_recall": 0.5596180777357378,
+      "tcn_recall": 0.5267898383371824,
+      "delta": 0.03282823939855539
+    },
+    {
+      "seed": 2024,
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "routecast_recall": 0.29702823179791976,
+      "tcn_recall": 0.27027930605196576,
+      "delta": 0.026748925745954
+    },
+    {
+      "seed": 2024,
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "routecast_recall": 0.3275282118055556,
+      "tcn_recall": 0.3087022569444444,
+      "delta": 0.01882595486111116
+    },
+    {
+      "seed": 2025,
+      "model": "qwen3",
+      "native_k": 8,
+      "routecast_recall": 0.5597962016608521,
+      "tcn_recall": 0.5272646307306766,
+      "delta": 0.032531570930175446
+    },
+    {
+      "seed": 2025,
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "routecast_recall": 0.2880135335930284,
+      "tcn_recall": 0.27239970282317977,
+      "delta": 0.015613830769848625
+    },
+    {
+      "seed": 2025,
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "routecast_recall": 0.3307291666666667,
+      "tcn_recall": 0.3041449652777778,
+      "delta": 0.026584201388888895
+    },
+    {
+      "seed": 2026,
+      "model": "qwen3",
+      "native_k": 8,
+      "routecast_recall": 0.5558203528082158,
+      "tcn_recall": 0.5260042504053855,
+      "delta": 0.02981610240283039
+    },
+    {
+      "seed": 2026,
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "routecast_recall": 0.28760893136821813,
+      "tcn_recall": 0.2712220392755311,
+      "delta": 0.01638689209268701
+    },
+    {
+      "seed": 2026,
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "routecast_recall": 0.3261176215277778,
+      "tcn_recall": 0.305908203125,
+      "delta": 0.02020941840277779
+    }
+  ],
+  "summary": {
+    "qwen3": {
+      "native_k": 8,
+      "seeds": 3,
+      "routecast_mean": 0.5584115440682685,
+      "routecast_std": 0.002245804119420208,
+      "tcn_mean": 0.5266862398244149,
+      "tcn_std": 0.0006365446802707723,
+      "delta_mean": 0.031725304243853746,
+      "delta_std": 0.0016600577692833293,
+      "all_routecast_exceeded": true
+    },
+    "deepseek_r1": {
+      "native_k": 8,
+      "seeds": 3,
+      "routecast_mean": 0.2908835655863888,
+      "routecast_std": 0.005325281014033756,
+      "tcn_mean": 0.2713003493835589,
+      "tcn_std": 0.0010623652722148748,
+      "delta_mean": 0.01958321620282988,
+      "delta_std": 0.006217712673848176,
+      "all_routecast_exceeded": true
+    },
+    "llama4_maverick": {
+      "native_k": 1,
+      "seeds": 3,
+      "routecast_mean": 0.328125,
+      "routecast_std": 0.0023629862999547074,
+      "tcn_mean": 0.30625180844907407,
+      "tcn_std": 0.002297993754955899,
+      "delta_mean": 0.021873191550925947,
+      "delta_std": 0.004138079640705087,
+      "all_routecast_exceeded": true
+    }
+  }
+}

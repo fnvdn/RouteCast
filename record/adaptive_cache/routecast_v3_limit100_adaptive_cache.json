@@ -1,0 +1,639 @@
+{
+  "method": "calibrated adaptive mass plus cache-aware prefetch",
+  "recall_retention": 0.98,
+  "models": {
+    "qwen3": {
+      "temperature": 0.8177439570426941,
+      "native_topk": 8,
+      "val_fixed": {
+        "avg_k": 8,
+        "recall": 0.5598359731193009,
+        "precision": 0.5598359731193009
+      },
+      "target_recall": 0.5486392536569149,
+      "selected_mass": 0.7,
+      "val_curve": {
+        "0.5": {
+          "avg_k": 4.359095982142857,
+          "recall": 0.3479441726823708,
+          "precision": 0.6385620763713075
+        },
+        "0.55": {
+          "avg_k": 5.398651215805471,
+          "recall": 0.3998259106667933,
+          "precision": 0.5924826697397821
+        },
+        "0.6": {
+          "avg_k": 6.8322390292553195,
+          "recall": 0.46030970982142855,
+          "precision": 0.5389854867201274
+        },
+        "0.65": {
+          "avg_k": 8.860117068768997,
+          "recall": 0.5313071392952128,
+          "precision": 0.4797292272067292
+        },
+        "0.7": {
+          "avg_k": 11.751056705927052,
+          "recall": 0.6120241855053191,
+          "precision": 0.41665984656281924
+        },
+        "0.75": {
+          "avg_k": 15.759118541033434,
+          "recall": 0.6978882206971885,
+          "precision": 0.3542777948551039
+        },
+        "0.8": {
+          "avg_k": 20.85423988411854,
+          "recall": 0.7779752505224165,
+          "precision": 0.2984430043369282
+        },
+        "0.85": {
+          "avg_k": 26.132622530395135,
+          "recall": 0.8399951320288754,
+          "precision": 0.25714836114955336
+        },
+        "0.9": {
+          "avg_k": 29.763665938449847,
+          "recall": 0.8741317795402735,
+          "precision": 0.23495271888831046
+        },
+        "0.95": {
+          "avg_k": 31.43446642287234,
+          "recall": 0.8868738423727204,
+          "precision": 0.22570736985118053
+        },
+        "0.98": {
+          "avg_k": 31.941216280395135,
+          "recall": 0.8888180625474924,
+          "precision": 0.22261345460236107
+        },
+        "0.99": {
+          "avg_k": 31.99507266337386,
+          "recall": 0.888910079074848,
+          "precision": 0.22226174346962413
+        }
+      },
+      "test_fixed": {
+        "avg_k": 8,
+        "recall": 0.5558221954695101,
+        "precision": 0.5558221954695101
+      },
+      "test_adaptive": {
+        "avg_k": 12.25552552700113,
+        "recall": 0.6296312220529704,
+        "precision": 0.4110023487223159
+      },
+      "system": {
+        "1": {
+          "LRU": {
+            "hit_rate": 0.49324111837256157,
+            "on_demand_loads": 825044.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 825044.0,
+            "demand_accesses": 1628080.0
+          },
+          "fixed_native": {
+            "hit_rate": 0.5512155422337969,
+            "on_demand_loads": 730657.0,
+            "prefetch_loads": 519643.0,
+            "useful_prefetches": 197895.0,
+            "wasted_prefetches": 321748.0,
+            "prefetch_precision": 0.38082876128418935,
+            "total_transfers": 1250300.0,
+            "demand_accesses": 1628080.0
+          },
+          "adaptive_mass": {
+            "hit_rate": 0.5463404746695494,
+            "on_demand_loads": 738594.0,
+            "prefetch_loads": 1402528.0,
+            "useful_prefetches": 206625.0,
+            "wasted_prefetches": 1195903.0,
+            "prefetch_precision": 0.14732326199548243,
+            "total_transfers": 2141122.0,
+            "demand_accesses": 1628080.0
+          },
+          "adaptive_cache": {
+            "hit_rate": 0.5344675937300378,
+            "on_demand_loads": 757924.0,
+            "prefetch_loads": 238423.0,
+            "useful_prefetches": 128677.0,
+            "wasted_prefetches": 109746.0,
+            "prefetch_precision": 0.5397004483627837,
+            "total_transfers": 996347.0,
+            "demand_accesses": 1628080.0
+          }
+        },
+        "2": {
+          "LRU": {
+            "hit_rate": 0.695215837059604,
+            "on_demand_loads": 496213.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 496213.0,
+            "demand_accesses": 1628080.0
+          },
+          "fixed_native": {
+            "hit_rate": 0.7198749447201612,
+            "on_demand_loads": 456066.0,
+            "prefetch_loads": 122904.0,
+            "useful_prefetches": 69855.0,
+            "wasted_prefetches": 53049.0,
+            "prefetch_precision": 0.5683704354618239,
+            "total_transfers": 578970.0,
+            "demand_accesses": 1628080.0
+          },
+          "adaptive_mass": {
+            "hit_rate": 0.7247027173111886,
+            "on_demand_loads": 448206.0,
+            "prefetch_loads": 603961.0,
+            "useful_prefetches": 185516.0,
+            "wasted_prefetches": 418445.0,
+            "prefetch_precision": 0.3071655289000449,
+            "total_transfers": 1052167.0,
+            "demand_accesses": 1628080.0
+          },
+          "adaptive_cache": {
+            "hit_rate": 0.719722618053167,
+            "on_demand_loads": 456314.0,
+            "prefetch_loads": 159875.0,
+            "useful_prefetches": 83382.0,
+            "wasted_prefetches": 76493.0,
+            "prefetch_precision": 0.5215449569976545,
+            "total_transfers": 616189.0,
+            "demand_accesses": 1628080.0
+          }
+        },
+        "4": {
+          "LRU": {
+            "hit_rate": 0.858452901577318,
+            "on_demand_loads": 230450.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 230450.0,
+            "demand_accesses": 1628080.0
+          },
+          "fixed_native": {
+            "hit_rate": 0.8694376197729842,
+            "on_demand_loads": 212566.0,
+            "prefetch_loads": 40829.0,
+            "useful_prefetches": 24986.0,
+            "wasted_prefetches": 15843.0,
+            "prefetch_precision": 0.61196698425139,
+            "total_transfers": 253395.0,
+            "demand_accesses": 1628080.0
+          },
+          "adaptive_mass": {
+            "hit_rate": 0.8775195322097195,
+            "on_demand_loads": 199408.0,
+            "prefetch_loads": 213615.0,
+            "useful_prefetches": 87534.0,
+            "wasted_prefetches": 126081.0,
+            "prefetch_precision": 0.4097745944807247,
+            "total_transfers": 413023.0,
+            "demand_accesses": 1628080.0
+          },
+          "adaptive_cache": {
+            "hit_rate": 0.8771055476389367,
+            "on_demand_loads": 200082.0,
+            "prefetch_loads": 113238.0,
+            "useful_prefetches": 56365.0,
+            "wasted_prefetches": 56873.0,
+            "prefetch_precision": 0.4977569367173564,
+            "total_transfers": 313320.0,
+            "demand_accesses": 1628080.0
+          }
+        }
+      }
+    },
+    "deepseek_r1": {
+      "temperature": 0.31906014680862427,
+      "native_topk": 8,
+      "val_fixed": {
+        "avg_k": 8,
+        "recall": 0.3335864396010628,
+        "precision": 0.3335864396010628
+      },
+      "target_recall": 0.32691471080904155,
+      "selected_mass": 0.95,
+      "val_curve": {
+        "0.5": {
+          "avg_k": 5.138540182525318,
+          "recall": 0.15595517732681274,
+          "precision": 0.242800751633191
+        },
+        "0.55": {
+          "avg_k": 5.9709461280757825,
+          "recall": 0.1714953405984058,
+          "precision": 0.2297730871052725
+        },
+        "0.6": {
+          "avg_k": 6.819091994300897,
+          "recall": 0.1877382648542493,
+          "precision": 0.22025016235141318
+        },
+        "0.65": {
+          "avg_k": 7.701461357772729,
+          "recall": 0.2045648176672186,
+          "precision": 0.21249454685455071
+        },
+        "0.7": {
+          "avg_k": 8.645038314913936,
+          "recall": 0.2226922003157611,
+          "precision": 0.2060763107842657
+        },
+        "0.75": {
+          "avg_k": 9.682390542569987,
+          "recall": 0.2422419519427009,
+          "precision": 0.20015053173296427
+        },
+        "0.8": {
+          "avg_k": 10.866244368285264,
+          "recall": 0.26429950132850705,
+          "precision": 0.19458388187911851
+        },
+        "0.85": {
+          "avg_k": 12.285446108822057,
+          "recall": 0.2905567696099195,
+          "precision": 0.18920388696428278
+        },
+        "0.9": {
+          "avg_k": 14.169163233085602,
+          "recall": 0.32463225384111827,
+          "precision": 0.183289442573765
+        },
+        "0.95": {
+          "avg_k": 17.2514151488313,
+          "recall": 0.3785583291616928,
+          "precision": 0.17554888147820769
+        },
+        "0.98": {
+          "avg_k": 21.484106049520584,
+          "recall": 0.44677427894797644,
+          "precision": 0.1663645777648528
+        },
+        "0.99": {
+          "avg_k": 24.901536447302554,
+          "recall": 0.4960939004197312,
+          "precision": 0.1593777641695584
+        }
+      },
+      "test_fixed": {
+        "avg_k": 8,
+        "recall": 0.28760893136821813,
+        "precision": 0.28760893136821813
+      },
+      "test_adaptive": {
+        "avg_k": 19.623645636721417,
+        "recall": 0.34378840207220596,
+        "precision": 0.14015271512195682
+      },
+      "system": {
+        "1": {
+          "LRU": {
+            "hit_rate": 0.21781856150355408,
+            "on_demand_loads": 779084.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 779084.0,
+            "demand_accesses": 996040.0
+          },
+          "fixed_native": {
+            "hit_rate": 0.2611531665394964,
+            "on_demand_loads": 735921.0,
+            "prefetch_loads": 597447.0,
+            "useful_prefetches": 96322.0,
+            "wasted_prefetches": 501125.0,
+            "prefetch_precision": 0.16122266912378838,
+            "total_transfers": 1333368.0,
+            "demand_accesses": 996040.0
+          },
+          "adaptive_mass": {
+            "hit_rate": 0.24571001164611864,
+            "on_demand_loads": 751303.0,
+            "prefetch_loads": 2045606.0,
+            "useful_prefetches": 110606.0,
+            "wasted_prefetches": 1935000.0,
+            "prefetch_precision": 0.054070040858308,
+            "total_transfers": 2796909.0,
+            "demand_accesses": 996040.0
+          },
+          "adaptive_cache": {
+            "hit_rate": 0.2446317416971206,
+            "on_demand_loads": 752377.0,
+            "prefetch_loads": 292029.0,
+            "useful_prefetches": 77070.0,
+            "wasted_prefetches": 214959.0,
+            "prefetch_precision": 0.263912145711556,
+            "total_transfers": 1044406.0,
+            "demand_accesses": 996040.0
+          }
+        },
+        "2": {
+          "LRU": {
+            "hit_rate": 0.30447471989076746,
+            "on_demand_loads": 692771.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 692771.0,
+            "demand_accesses": 996040.0
+          },
+          "fixed_native": {
+            "hit_rate": 0.3437713344845589,
+            "on_demand_loads": 653630.0,
+            "prefetch_loads": 407871.0,
+            "useful_prefetches": 89681.0,
+            "wasted_prefetches": 318190.0,
+            "prefetch_precision": 0.21987589213256153,
+            "total_transfers": 1061501.0,
+            "demand_accesses": 996040.0
+          },
+          "adaptive_mass": {
+            "hit_rate": 0.32131239709248627,
+            "on_demand_loads": 676000.0,
+            "prefetch_loads": 1658440.0,
+            "useful_prefetches": 141560.0,
+            "wasted_prefetches": 1516880.0,
+            "prefetch_precision": 0.08535732375003015,
+            "total_transfers": 2334440.0,
+            "demand_accesses": 996040.0
+          },
+          "adaptive_cache": {
+            "hit_rate": 0.32061262599895585,
+            "on_demand_loads": 676697.0,
+            "prefetch_loads": 286602.0,
+            "useful_prefetches": 74722.0,
+            "wasted_prefetches": 211880.0,
+            "prefetch_precision": 0.2607169524288037,
+            "total_transfers": 963299.0,
+            "demand_accesses": 996040.0
+          }
+        },
+        "4": {
+          "LRU": {
+            "hit_rate": 0.4231065017469178,
+            "on_demand_loads": 574609.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 574609.0,
+            "demand_accesses": 996040.0
+          },
+          "fixed_native": {
+            "hit_rate": 0.4503985783703466,
+            "on_demand_loads": 547425.0,
+            "prefetch_loads": 243911.0,
+            "useful_prefetches": 70616.0,
+            "wasted_prefetches": 173295.0,
+            "prefetch_precision": 0.2895154380081259,
+            "total_transfers": 791336.0,
+            "demand_accesses": 996040.0
+          },
+          "adaptive_mass": {
+            "hit_rate": 0.42816151961768606,
+            "on_demand_loads": 569574.0,
+            "prefetch_loads": 1089383.0,
+            "useful_prefetches": 151509.0,
+            "wasted_prefetches": 937874.0,
+            "prefetch_precision": 0.1390778082639439,
+            "total_transfers": 1658957.0,
+            "demand_accesses": 996040.0
+          },
+          "adaptive_cache": {
+            "hit_rate": 0.4308521746114614,
+            "on_demand_loads": 566894.0,
+            "prefetch_loads": 222341.0,
+            "useful_prefetches": 65854.0,
+            "wasted_prefetches": 156487.0,
+            "prefetch_precision": 0.29618468928357794,
+            "total_transfers": 789235.0,
+            "demand_accesses": 996040.0
+          }
+        }
+      }
+    },
+    "llama4_maverick": {
+      "temperature": 1.0538183450698853,
+      "native_topk": 1,
+      "val_fixed": {
+        "avg_k": 1,
+        "recall": 0.33716724537037035,
+        "precision": 0.33716724537037035
+      },
+      "target_recall": 0.33042390046296294,
+      "selected_mass": 0.5,
+      "val_curve": {
+        "0.5": {
+          "avg_k": 6.56080005787037,
+          "recall": 0.6293041087962963,
+          "precision": 0.09591880612813064
+        },
+        "0.55": {
+          "avg_k": 7.968967013888889,
+          "recall": 0.6612774884259259,
+          "precision": 0.08298158183782213
+        },
+        "0.6": {
+          "avg_k": 9.59080222800926,
+          "recall": 0.6913339120370371,
+          "precision": 0.07208301199435072
+        },
+        "0.65": {
+          "avg_k": 11.45506004050926,
+          "recall": 0.7179000289351852,
+          "precision": 0.06267099660730101
+        },
+        "0.7": {
+          "avg_k": 13.56472439236111,
+          "recall": 0.7428385416666666,
+          "precision": 0.05476252374762524
+        },
+        "0.75": {
+          "avg_k": 15.868815104166666,
+          "recall": 0.7658781828703703,
+          "precision": 0.04826309827438056
+        },
+        "0.8": {
+          "avg_k": 18.28267867476852,
+          "recall": 0.7859700520833334,
+          "precision": 0.042989873971150165
+        },
+        "0.85": {
+          "avg_k": 20.66847511574074,
+          "recall": 0.8035662615740741,
+          "precision": 0.03887883634734584
+        },
+        "0.9": {
+          "avg_k": 22.76607711226852,
+          "recall": 0.8180700231481481,
+          "precision": 0.03593372802498743
+        },
+        "0.95": {
+          "avg_k": 24.599247685185187,
+          "recall": 0.8306749131944444,
+          "precision": 0.033768305593130626
+        },
+        "0.98": {
+          "avg_k": 26.39986617476852,
+          "recall": 0.8508210358796297,
+          "precision": 0.03222823291024087
+        },
+        "0.99": {
+          "avg_k": 28.99361617476852,
+          "recall": 0.8735170717592593,
+          "precision": 0.030127910450833347
+        }
+      },
+      "test_fixed": {
+        "avg_k": 1,
+        "recall": 0.3261176215277778,
+        "precision": 0.3261176215277778
+      },
+      "test_adaptive": {
+        "avg_k": 6.516954210069445,
+        "recall": 0.6099717881944444,
+        "precision": 0.09359767899734017
+      },
+      "system": {
+        "1": {
+          "LRU": {
+            "hit_rate": 0.289794921875,
+            "on_demand_loads": 26181.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 26181.0,
+            "demand_accesses": 36864.0
+          },
+          "fixed_native": {
+            "hit_rate": 0.3254123263888889,
+            "on_demand_loads": 24868.0,
+            "prefetch_loads": 19697.0,
+            "useful_prefetches": 4185.0,
+            "wasted_prefetches": 15512.0,
+            "prefetch_precision": 0.212468903893994,
+            "total_transfers": 44565.0,
+            "demand_accesses": 36864.0
+          },
+          "adaptive_mass": {
+            "hit_rate": 0.3201768663194444,
+            "on_demand_loads": 25061.0,
+            "prefetch_loads": 222661.0,
+            "useful_prefetches": 4594.0,
+            "wasted_prefetches": 218067.0,
+            "prefetch_precision": 0.020632261599471843,
+            "total_transfers": 247722.0,
+            "demand_accesses": 36864.0
+          },
+          "adaptive_cache": {
+            "hit_rate": 0.3201497395833333,
+            "on_demand_loads": 25062.0,
+            "prefetch_loads": 18294.0,
+            "useful_prefetches": 4561.0,
+            "wasted_prefetches": 13733.0,
+            "prefetch_precision": 0.2493167158631245,
+            "total_transfers": 43356.0,
+            "demand_accesses": 36864.0
+          }
+        },
+        "2": {
+          "LRU": {
+            "hit_rate": 0.4057345920138889,
+            "on_demand_loads": 21907.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 21907.0,
+            "demand_accesses": 36864.0
+          },
+          "fixed_native": {
+            "hit_rate": 0.4322374131944444,
+            "on_demand_loads": 20930.0,
+            "prefetch_loads": 11625.0,
+            "useful_prefetches": 2958.0,
+            "wasted_prefetches": 8667.0,
+            "prefetch_precision": 0.2544516129032258,
+            "total_transfers": 32555.0,
+            "demand_accesses": 36864.0
+          },
+          "adaptive_mass": {
+            "hit_rate": 0.4349772135416667,
+            "on_demand_loads": 20829.0,
+            "prefetch_loads": 204973.0,
+            "useful_prefetches": 6249.0,
+            "wasted_prefetches": 198724.0,
+            "prefetch_precision": 0.030486942182628932,
+            "total_transfers": 225802.0,
+            "demand_accesses": 36864.0
+          },
+          "adaptive_cache": {
+            "hit_rate": 0.4361165364583333,
+            "on_demand_loads": 20787.0,
+            "prefetch_loads": 33819.0,
+            "useful_prefetches": 6091.0,
+            "wasted_prefetches": 27728.0,
+            "prefetch_precision": 0.1801058576539815,
+            "total_transfers": 54606.0,
+            "demand_accesses": 36864.0
+          }
+        },
+        "4": {
+          "LRU": {
+            "hit_rate": 0.5231119791666666,
+            "on_demand_loads": 17580.0,
+            "prefetch_loads": 0.0,
+            "useful_prefetches": 0.0,
+            "wasted_prefetches": 0.0,
+            "prefetch_precision": 0.0,
+            "total_transfers": 17580.0,
+            "demand_accesses": 36864.0
+          },
+          "fixed_native": {
+            "hit_rate": 0.5433756510416666,
+            "on_demand_loads": 16833.0,
+            "prefetch_loads": 7573.0,
+            "useful_prefetches": 2008.0,
+            "wasted_prefetches": 5565.0,
+            "prefetch_precision": 0.26515251551564767,
+            "total_transfers": 24406.0,
+            "demand_accesses": 36864.0
+          },
+          "adaptive_mass": {
+            "hit_rate": 0.5520562065972222,
+            "on_demand_loads": 16513.0,
+            "prefetch_loads": 170832.0,
+            "useful_prefetches": 7678.0,
+            "wasted_prefetches": 163154.0,
+            "prefetch_precision": 0.044944741032125125,
+            "total_transfers": 187345.0,
+            "demand_accesses": 36864.0
+          },
+          "adaptive_cache": {
+            "hit_rate": 0.556884765625,
+            "on_demand_loads": 16335.0,
+            "prefetch_loads": 57853.0,
+            "useful_prefetches": 7201.0,
+            "wasted_prefetches": 50652.0,
+            "prefetch_precision": 0.12447064110763487,
+            "total_transfers": 74188.0,
+            "demand_accesses": 36864.0
+          }
+        }
+      }
+    }
+  }
+}

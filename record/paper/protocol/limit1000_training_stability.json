@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "cache": "F:\\MOEresearch\\data\\routecast_cache\\cross_token_limit1000_h16_packed",
+  "seed": 2026,
+  "device": "cuda",
+  "amp_dtype": "torch.bfloat16",
+  "rows": [
+    {
+      "model": "qwen3",
+      "batches": 8,
+      "loss_min": 1.3421143293380737,
+      "loss_max": 1.3802003860473633,
+      "gradient_norm_min": 0.1382395625114441,
+      "gradient_norm_max": 0.15068583190441132
+    },
+    {
+      "model": "deepseek_r1",
+      "batches": 8,
+      "loss_min": 1.7747052907943726,
+      "loss_max": 1.826108455657959,
+      "gradient_norm_min": 0.3112785816192627,
+      "gradient_norm_max": 0.32609620690345764
+    },
+    {
+      "model": "llama4_maverick",
+      "batches": 8,
+      "loss_min": 1.0707802772521973,
+      "loss_max": 1.2268154621124268,
+      "gradient_norm_min": 0.15126466751098633,
+      "gradient_norm_max": 0.19094586372375488
+    }
+  ],
+  "elapsed_seconds": 1.9433250427246094
+}

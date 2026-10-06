@@ -1,0 +1,57 @@
+{
+  "version": 3,
+  "task": "cross_token",
+  "training_mode": "per_model",
+  "selected_models": [
+    "deepseek_r1"
+  ],
+  "group_dro_enabled": false,
+  "static_sample_balancing": true,
+  "seed": 2026,
+  "history": 16,
+  "disabled_branches": [],
+  "best_epoch": 3,
+  "group_weights": {
+    "deepseek_r1": 1.0
+  },
+  "val": {
+    "deepseek_r1": {
+      "examples": 1022736,
+      "native_topk": 8,
+      "metrics": {
+        "8": {
+          "recall": 0.31281068623769964,
+          "precision": 0.31281068623769964
+        },
+        "12": {
+          "recall": 0.3731080161449289,
+          "precision": 0.2487386774299526
+        },
+        "16": {
+          "recall": 0.41605568299150514,
+          "precision": 0.20802784149575257
+        }
+      }
+    }
+  },
+  "test": {
+    "deepseek_r1": {
+      "examples": 1123638,
+      "native_topk": 8,
+      "metrics": {
+        "8": {
+          "recall": 0.3124657362958533,
+          "precision": 0.3124657362958533
+        },
+        "12": {
+          "recall": 0.37264003175399907,
+          "precision": 0.2484266878359994
+        },
+        "16": {
+          "recall": 0.4153474028112257,
+          "precision": 0.20767370140561284
+        }
+      }
+    }
+  }
+}

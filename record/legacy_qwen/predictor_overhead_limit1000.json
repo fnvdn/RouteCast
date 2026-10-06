@@ -1,0 +1,11 @@
+{
+  "device": "cuda",
+  "parameters": 3073,
+  "model_size_mb": 0.014996528625488281,
+  "batch_size": 8192,
+  "batches": 20,
+  "mean_batch_ms": 72.20584500464611,
+  "median_batch_ms": 72.74750000215136,
+  "per_sample_us": 8.814190064043714,
+  "peak_gpu_memory_mb": 576.13818359375
+}

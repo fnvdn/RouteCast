@@ -1,0 +1,71 @@
+{
+  "method": "request_aware_heatmap",
+  "formula": "alpha * one_step_heatmap + (1-alpha) * prefill_distribution",
+  "alpha_step": 0.05,
+  "models": {
+    "qwen3": {
+      "native_topk": 8,
+      "best_alpha": 0.8,
+      "val_native_recall": 0.4757796174487082,
+      "test_examples": 203510,
+      "test": {
+        "8": {
+          "recall": 0.44349786251289863,
+          "precision": 0.44349786251289863
+        },
+        "12": {
+          "recall": 0.5635583018033512,
+          "precision": 0.37570553453556743
+        },
+        "16": {
+          "recall": 0.6518438897351482,
+          "precision": 0.3259219448675741
+        }
+      }
+    },
+    "deepseek_r1": {
+      "native_topk": 8,
+      "best_alpha": 1.0,
+      "val_native_recall": 0.24063185913974355,
+      "test_examples": 124505,
+      "test": {
+        "8": {
+          "recall": 0.18783984578932572,
+          "precision": 0.18783984578932572
+        },
+        "12": {
+          "recall": 0.24070017268382796,
+          "precision": 0.16046678178921864
+        },
+        "16": {
+          "recall": 0.28427773984980526,
+          "precision": 0.14213886992490263
+        }
+      }
+    },
+    "llama4_maverick": {
+      "native_topk": 1,
+      "best_alpha": 0.85,
+      "val_native_recall": 0.32203052662037035,
+      "test_examples": 36864,
+      "test": {
+        "1": {
+          "recall": 0.3178982204861111,
+          "precision": 0.3178982204861111
+        },
+        "2": {
+          "recall": 0.4245334201388889,
+          "precision": 0.21226671006944445
+        },
+        "4": {
+          "recall": 0.5380588107638888,
+          "precision": 0.1345147026909722
+        },
+        "8": {
+          "recall": 0.6620279947916666,
+          "precision": 0.08275349934895833
+        }
+      }
+    }
+  }
+}

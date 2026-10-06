@@ -1,0 +1,162 @@
+{
+  "protocol_version": "1.0",
+  "frozen_at": "2026-08-24",
+  "status": "frozen_for_nan_fix_and_final_reproduction",
+  "task": {
+    "name": "cross_token_same_layer_expert_forecasting",
+    "input": "observed expert routes through token t, including the current route",
+    "target": "expert set at token t+1 in the same MoE layer",
+    "history_length": 16,
+    "unit_of_evaluation": "token-layer",
+    "unit_of_split": "request",
+    "no_request_leakage": true
+  },
+  "split": {
+    "method": "deterministic_sha1_of_request_relative_path",
+    "key_normalization": "relative path with forward slashes",
+    "hash_value": "big-endian integer from first four SHA-1 bytes divided by 2^32",
+    "thresholds": {
+      "train": "value < 0.70",
+      "validation": "0.70 <= value < 0.85",
+      "test": "value >= 0.85"
+    },
+    "note": "The request split is deterministic and seed-independent. Training seeds do not alter membership."
+  },
+  "models": {
+    "qwen3": {
+      "trace_model": "Qwen3-235B-A22B-FP8",
+      "num_experts": 128,
+      "native_k": 8,
+      "num_active_layers": 94
+    },
+    "deepseek_r1": {
+      "trace_model": "DeepSeek-R1-AWQ",
+      "num_experts": 256,
+      "native_k": 8,
+      "num_active_layers": 58
+    },
+    "llama4_maverick": {
+      "trace_model": "Llama-4-Maverick-17B-128E-Instruct",
+      "num_experts": 128,
+      "native_k": 1,
+      "num_active_layers": 24
+    }
+  },
+  "datasets": {
+    "limit100": {
+      "cache_root": "F:\\MOEresearch\\data\\routecast_cache\\cross_token_limit100_h16",
+      "manifest_sha256": "FF76E46833F5EB230E1768B883F3B91DD15E17D3C91697A7DD9D24FADDE209D5",
+      "requests": {
+        "qwen3": {"train": 69, "validation": 14, "test": 17},
+        "deepseek_r1": {"train": 69, "validation": 14, "test": 17},
+        "llama4_maverick": {"train": 70, "validation": 18, "test": 12}
+      },
+      "token_layer_examples": {
+        "qwen3": {"train": 823534, "validation": 168448, "test": 203510},
+        "deepseek_r1": {"train": 512120, "validation": 103876, "test": 124505},
+        "llama4_maverick": {"train": 215040, "validation": 55296, "test": 36864}
+      },
+      "role": "development, ablation, and rapid reproducibility"
+    },
+    "limit1000": {
+      "cache_root": "F:\\MOEresearch\\data\\routecast_cache\\cross_token_limit1000_h16_packed",
+      "manifest_sha256": "787A68AEB794778D4A534749BB2501E590A6ADC9C86F6DD8DBED3FB4E8EE919A",
+      "requests": {
+        "qwen3": {"train": 698, "validation": 145, "test": 157},
+        "deepseek_r1": {"train": 708, "validation": 139, "test": 153},
+        "llama4_maverick": {"train": 708, "validation": 145, "test": 147}
+      },
+      "token_layer_examples": {
+        "qwen3": {"train": 8343910, "validation": 1733736, "test": 1885170},
+        "deepseek_r1": {"train": 5199528, "validation": 1022736, "test": 1123638},
+        "llama4_maverick": {"train": 2171400, "validation": 445440, "test": 450672}
+      },
+      "role": "final scale experiment after numerical-stability repair"
+    }
+  },
+  "training": {
+    "seeds": [2024, 2025, 2026],
+    "primary_seed_for_single_run_tables": 2026,
+    "epochs": 3,
+    "batch_size": 256,
+    "optimizer": "AdamW",
+    "learning_rate": 0.0006,
+    "weight_decay": 0.0001,
+    "gradient_clip_norm": 1.0,
+    "dro_eta": 0.8,
+    "checkpoint_selection": "highest validation macro native-K Recall across the three models",
+    "mixed_precision": "CUDA FP16 autocast",
+    "loss_weights": {
+      "binary_cross_entropy": 0.20,
+      "listwise": 0.25,
+      "pairwise_rank": 0.35,
+      "multi_budget": 0.20
+    },
+    "budgets": {
+      "qwen3": [8, 12, 16],
+      "deepseek_r1": [8, 12, 16],
+      "llama4_maverick": [1, 2, 4, 8]
+    }
+  },
+  "calibration": {
+    "method": "per-model scalar temperature scaling on validation data",
+    "predictor_frozen": true,
+    "objective": "binary cross entropy with logits",
+    "max_calibration_examples_per_model": 300000,
+    "optimizer": "LBFGS",
+    "lbfgs_iterations": 40,
+    "test_data_used_for_selection": false
+  },
+  "adaptive_budget": {
+    "selection_mode": "budget",
+    "mass_grid": {"start": 0.01, "stop": 1.00, "step": 0.01},
+    "recall_retention": 0.98,
+    "budget_multiplier": 1.0,
+    "hard_constraint": "1 <= K_t <= native_k",
+    "fallback": "mass=1.0 implies K_t=native_k",
+    "selection_data": "validation only"
+  },
+  "abstention": {
+    "threshold_grid": [0.0, 0.01, 0.02, 0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.01],
+    "utility": "useful_prefetches - waste_penalty * wasted_prefetches",
+    "waste_penalty": 1.0,
+    "selection_data": "validation only",
+    "can_abstain_all": true
+  },
+  "cache_replay": {
+    "scope": "trace-driven; no end-to-end latency claim",
+    "reset": "cache resets at each request",
+    "warm_start": "experts observed in the current route before the first predicted token",
+    "capacity_entries": "num_active_layers * native_k * capacity_multiplier",
+    "capacity_multipliers": [1, 2, 4],
+    "cache_decay": 0.90,
+    "eviction_margin": 0.01,
+    "policies": ["pure_LRU", "fixed_native_prefetch", "adaptive_mass", "adaptive_mass_plus_abstention_and_cache_awareness"],
+    "lru_definition": "recency only; prediction scores never update LRU priority"
+  },
+  "metrics": {
+    "prediction_required": ["Recall@K", "Precision@K", "MRR", "NDCG@K", "average_hits"],
+    "calibration_required": ["BCE", "Brier", "ECE"],
+    "selection_required": ["average_candidate_K", "candidate_recall", "issued_prefetch_coverage", "issued_prefetch_precision", "abstention_rate"],
+    "cache_required": ["hit_rate", "on_demand_loads", "prefetch_loads", "useful_prefetches", "wasted_prefetches", "prefetch_precision", "total_transfers"],
+    "statistical_unit": "request",
+    "uncertainty": "paired request-level bootstrap 95% confidence intervals"
+  },
+  "environment_snapshot": {
+    "os": "Windows",
+    "python": "3.12.13",
+    "pytorch": "2.13.0+cu126",
+    "pytorch_cuda": "12.6",
+    "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU"
+  },
+  "source_hashes": {
+    "build_cross_token_cache_v3.py": "3F67F88DF1D329310735659C59D683BD582D63D0799943DAE9F7E24C5C338506",
+    "train_universal_routecast_v3.py": "9C8E00B9DB1983B87BDCE37345D35C86B0A43B0416361DF34D774385CEC30BCD",
+    "calibrate_routecast_v3.py": "9BECDD318774A20F5F9799A97DA90B9045B4F04E3373AE0870D9AF55DA016425",
+    "evaluate_adaptive_cache_v3.py": "0924DC0BCE2F411A55D0C469E043C9F90CC5D34E36073072E74BF7CE9FC50859"
+  },
+  "claim_boundary": {
+    "supported": "route forecasting quality and trace-driven cache/transfer outcomes",
+    "unsupported_without_deployment": ["end-to-end latency", "throughput", "energy", "real PCIe overlap speedup"]
+  }
+}

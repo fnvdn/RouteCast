@@ -1,0 +1,58 @@
+[
+  {
+    "file": "ExtFig1_dataset_composition.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\ExtFig1_dataset_composition.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 6.5,\n  \"text_run_count\": 30,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  },
+  {
+    "file": "ExtFig2_history_sensitivity_legacy.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\ExtFig2_history_sensitivity_legacy.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 6.5,\n  \"text_run_count\": 20,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  },
+  {
+    "file": "ExtFig3_data_scale_generalization.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\ExtFig3_data_scale_generalization.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 6.5,\n  \"text_run_count\": 13,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  },
+  {
+    "file": "ExtFig4_seed_reproducibility.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\ExtFig4_seed_reproducibility.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 6.5,\n  \"text_run_count\": 12,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  },
+  {
+    "file": "ExtFig5_layerwise_heterogeneity_legacy.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\ExtFig5_layerwise_heterogeneity_legacy.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 6.5,\n  \"text_run_count\": 19,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  },
+  {
+    "file": "ExtFig6_calibration_metrics.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\ExtFig6_calibration_metrics.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 6.5,\n  \"text_run_count\": 40,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  },
+  {
+    "file": "ExtFig7_predictor_overhead_legacy.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\ExtFig7_predictor_overhead_legacy.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 6.0,\n  \"text_run_count\": 20,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  },
+  {
+    "file": "ExtFig8_full_cache_replay_matrix.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\ExtFig8_full_cache_replay_matrix.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 5.0,\n  \"text_run_count\": 165,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  },
+  {
+    "file": "Fig1_routecast_framework.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\Fig1_routecast_framework.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 6.5,\n  \"text_run_count\": 19,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  },
+  {
+    "file": "Fig2_main_prediction.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\Fig2_main_prediction.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 6.5,\n  \"text_run_count\": 56,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  },
+  {
+    "file": "Fig3_budget_quality_tradeoff.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\Fig3_budget_quality_tradeoff.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 6.5,\n  \"text_run_count\": 45,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  },
+  {
+    "file": "Fig4_cross_model_ablation.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\Fig4_cross_model_ablation.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 6.5,\n  \"text_run_count\": 25,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  },
+  {
+    "file": "Fig5_calibration_and_mass.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\Fig5_calibration_and_mass.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 6.5,\n  \"text_run_count\": 86,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  },
+  {
+    "file": "Fig6_cache_aware_replay.pdf",
+    "report": "{\n  \"pdf\": \"F:\\\\MOEresearch\\\\record\\\\paper\\\\figures\\\\Fig6_cache_aware_replay.pdf\",\n  \"auditable\": true,\n  \"minimum_required_pt\": 5.0,\n  \"minimum_found_pt\": 5.5,\n  \"text_run_count\": 56,\n  \"below_minimum_count\": 0,\n  \"below_minimum\": [],\n  \"warnings\": []\n}"
+  }
+]

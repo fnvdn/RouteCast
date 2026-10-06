@@ -1,0 +1,41 @@
+{
+  "protocol": {
+    "cache": "cross_token_limit1000_h16_packed",
+    "seed": 2026,
+    "comparison": "shared Group-DRO vs shared uniform group weights vs independent per-model training"
+  },
+  "rows": [
+    {
+      "model": "qwen3",
+      "shared_group_dro_recall": 0.5558366752070105,
+      "shared_no_dro_recall": 0.5558952906103959,
+      "per_model_recall": 0.5584158192629842,
+      "group_dro_delta": -5.861540338536475e-05,
+      "shared_training_delta": -0.0025791440559737033
+    },
+    {
+      "model": "deepseek_r1",
+      "shared_group_dro_recall": 0.3172273899601117,
+      "shared_no_dro_recall": 0.3165812743962023,
+      "per_model_recall": 0.3124657362958533,
+      "group_dro_delta": 0.0006461155639093663,
+      "shared_training_delta": 0.004761653664258403
+    },
+    {
+      "model": "llama4_maverick",
+      "shared_group_dro_recall": 0.36024203855575676,
+      "shared_no_dro_recall": 0.3611074129300245,
+      "per_model_recall": 0.3643625519224625,
+      "group_dro_delta": -0.0008653743742677578,
+      "shared_training_delta": -0.004120513366705714
+    },
+    {
+      "model": "macro_average",
+      "shared_group_dro_recall": 0.411102034574293,
+      "shared_no_dro_recall": 0.41119465931220756,
+      "per_model_recall": 0.4117480358271,
+      "group_dro_delta": -9.26247379145854e-05,
+      "shared_training_delta": -0.0006460012528070047
+    }
+  ]
+}

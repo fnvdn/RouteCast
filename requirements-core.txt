@@ -1,0 +1,4 @@
+# Portable minimum environment. The archived .venv records the exact local build.
+numpy>=2.0,<3
+torch>=2.5
+

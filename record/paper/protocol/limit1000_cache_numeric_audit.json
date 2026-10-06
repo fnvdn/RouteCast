@@ -1,0 +1,41 @@
+{
+  "cache": "F:\\MOEresearch\\data\\routecast_cache\\cross_token_limit1000_h16_packed",
+  "manifest_items": 3000,
+  "audited_items": 3000,
+  "complete_audit": true,
+  "status": "PASS",
+  "bad_tensors": [],
+  "counts": {
+    "files": 3000,
+    "samples": 22376230,
+    "files_qwen3_val": 145,
+    "samples_qwen3_val": 1733736,
+    "files_qwen3_test": 157,
+    "samples_qwen3_test": 1885170,
+    "files_qwen3_train": 698,
+    "samples_qwen3_train": 8343910,
+    "files_deepseek_r1_val": 139,
+    "samples_deepseek_r1_val": 1022736,
+    "files_deepseek_r1_test": 153,
+    "samples_deepseek_r1_test": 1123638,
+    "files_deepseek_r1_train": 708,
+    "samples_deepseek_r1_train": 5199528,
+    "files_llama4_maverick_train": 708,
+    "samples_llama4_maverick_train": 2171400,
+    "files_llama4_maverick_val": 145,
+    "samples_llama4_maverick_val": 445440,
+    "files_llama4_maverick_test": 147,
+    "samples_llama4_maverick_test": 450672
+  },
+  "finite_ranges": {
+    "static": [
+      0.0,
+      1.0
+    ],
+    "context": [
+      0.0,
+      1.0
+    ]
+  },
+  "elapsed_seconds": 139.76022505760193
+}

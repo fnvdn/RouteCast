@@ -1,0 +1,72 @@
+[
+  {
+    "figure": "Fig1_routecast_framework",
+    "role": "Method schematic",
+    "evidence_status": "No quantitative data"
+  },
+  {
+    "figure": "Fig2_main_prediction",
+    "role": "Main native-K comparison and paired CI",
+    "evidence_status": "Current limit=1000"
+  },
+  {
+    "figure": "Fig3_budget_quality_tradeoff",
+    "role": "Recall-waste budget curves",
+    "evidence_status": "Cross-model limit=100 development"
+  },
+  {
+    "figure": "Fig4_cross_model_ablation",
+    "role": "Component ablation",
+    "evidence_status": "Cross-model limit=100 development"
+  },
+  {
+    "figure": "Fig5_calibration_and_mass",
+    "role": "Reliability and mass selection",
+    "evidence_status": "Cross-model limit=100 development"
+  },
+  {
+    "figure": "Fig6_cache_aware_replay",
+    "role": "Trace-driven cache replay",
+    "evidence_status": "Cross-model limit=100 development"
+  },
+  {
+    "figure": "ExtFig1_dataset_composition",
+    "role": "Dataset composition",
+    "evidence_status": "Current limit=1000 manifest"
+  },
+  {
+    "figure": "ExtFig2_history_sensitivity_legacy",
+    "role": "History sensitivity",
+    "evidence_status": "Legacy Qwen-only development"
+  },
+  {
+    "figure": "ExtFig3_data_scale_generalization",
+    "role": "Scale comparison",
+    "evidence_status": "limit=100 vs stable limit=1000"
+  },
+  {
+    "figure": "ExtFig4_seed_reproducibility",
+    "role": "Seed robustness",
+    "evidence_status": "Cross-model limit=100"
+  },
+  {
+    "figure": "ExtFig5_layerwise_heterogeneity_legacy",
+    "role": "Layer heterogeneity",
+    "evidence_status": "Legacy Qwen-only"
+  },
+  {
+    "figure": "ExtFig6_calibration_metrics",
+    "role": "Calibration metrics",
+    "evidence_status": "Cross-model limit=100"
+  },
+  {
+    "figure": "ExtFig7_predictor_overhead_legacy",
+    "role": "Predictor overhead",
+    "evidence_status": "Legacy Qwen-only; not V3"
+  },
+  {
+    "figure": "ExtFig8_full_cache_replay_matrix",
+    "role": "Full cache matrix",
+    "evidence_status": "Cross-model limit=100"
+  }
+]

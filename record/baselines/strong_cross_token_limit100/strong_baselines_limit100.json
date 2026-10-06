@@ -1,0 +1,88 @@
+{
+  "rows": [
+    {
+      "model": "qwen3",
+      "native_k": 8,
+      "method": "Paper Heatmap",
+      "recall": 0.4619865117193258,
+      "delta_vs_routecast": -0.09383384108889004
+    },
+    {
+      "model": "qwen3",
+      "native_k": 8,
+      "method": "Request-aware Heatmap",
+      "recall": 0.44349786251289863,
+      "delta_vs_routecast": -0.11232249029531721
+    },
+    {
+      "model": "qwen3",
+      "native_k": 8,
+      "method": "GRU-only",
+      "recall": 0.5262603803252911,
+      "delta_vs_routecast": -0.029559972482924746
+    },
+    {
+      "model": "qwen3",
+      "native_k": 8,
+      "method": "RouteCast V3",
+      "recall": 0.5558203528082158,
+      "delta_vs_routecast": 0.0
+    },
+    {
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "method": "Paper Heatmap",
+      "recall": 0.1878609292799486,
+      "delta_vs_routecast": -0.09974800208826953
+    },
+    {
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "method": "Request-aware Heatmap",
+      "recall": 0.18783984578932572,
+      "delta_vs_routecast": -0.09976908557889241
+    },
+    {
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "method": "GRU-only",
+      "recall": 0.2725743946026264,
+      "delta_vs_routecast": -0.015034536765591744
+    },
+    {
+      "model": "deepseek_r1",
+      "native_k": 8,
+      "method": "RouteCast V3",
+      "recall": 0.28760893136821813,
+      "delta_vs_routecast": 0.0
+    },
+    {
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "method": "Paper Heatmap",
+      "recall": 0.3132866753472222,
+      "delta_vs_routecast": -0.01283094618055558
+    },
+    {
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "method": "Request-aware Heatmap",
+      "recall": 0.3178982204861111,
+      "delta_vs_routecast": -0.008219401041666685
+    },
+    {
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "method": "GRU-only",
+      "recall": 0.3030598958333333,
+      "delta_vs_routecast": -0.023057725694444475
+    },
+    {
+      "model": "llama4_maverick",
+      "native_k": 1,
+      "method": "RouteCast V3",
+      "recall": 0.3261176215277778,
+      "delta_vs_routecast": 0.0
+    }
+  ]
+}
